@@ -53,11 +53,12 @@ TypeScript types defined in: ✅ `src/types/database.ts`
 - Next.js 15.5.2 project setup with TypeScript
 - TailwindCSS v4 with dark-mode-first design
 - Leaflet.js map integration with dynamic loading (SSR fix)
-- Basic game layout with overlay UI elements:
-  - Credits display (top-left)
-  - Action buttons for settings/build (top-right)
-  - Mission log panel (bottom-left)  
-  - Fleet status panel (bottom-right)
+- German-localized game layout with overlay UI elements:
+  - Enhanced credits display with running costs (top-left)
+  - German action buttons for "Einstellungen"/"Bauen" (top-right)
+  - "Aktive Einsätze" panel with warning icon (bottom-left)
+  - Fleet status panel removed for better UX
+- Icon-based navigation instead of text headers
 - Supabase client configuration
 - Project structure (components, types, hooks, utils, store, services)
 - Database TypeScript type definitions

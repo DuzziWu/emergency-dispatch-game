@@ -211,13 +211,14 @@ Die gewählte Architektur ist sehr gut erweiterbar:
 2. **UI/UX Grundlagen:**
    - Vollbild-Karte mit Leaflet.js implementiert
    - Dark Theme mit CartoDB Dark Matter Tiles
-   - Responsive Overlay-UI mit Game Layout:
-     - Credits-Display (oben links)
-     - Action Buttons für Settings/Build (oben rechts)
-     - Mission Log Panel (unten links)
-     - Fleet Status Panel (unten rechts)
-   - Icon-basierte Navigation
+   - Responsive Overlay-UI mit Game Layout (deutsch lokalisiert):
+     - Erweiterte Credits-Anzeige mit laufenden Ausgaben (oben links)
+     - Deutsche Action Buttons "Einstellungen"/"Bauen" (oben rechts)
+     - "Aktive Einsätze" Panel mit Warnsymbol-Icon (unten links)
+     - Fleet Status Panel entfernt für bessere Übersichtlichkeit
+   - Icon-basierte Navigation statt Text-Überschriften
    - SSR-Optimierung für Client-Only Komponenten
+   - Deutsche Benutzeroberfläche durchgehend implementiert
 
 3. **Technische Grundlagen:**
    - TypeScript-Typen für Datenbank-Schema definiert
@@ -253,6 +254,13 @@ Die gewählte Architektur ist sehr gut erweiterbar:
 
 ---
 
-**Status:** ✅ **Phase 1 abgeschlossen** - Grundgerüst steht, bereit für Backend-Integration.
+**Status:** ✅ **Phase 1 abgeschlossen & UI optimiert** - Grundgerüst mit deutscher Lokalisierung steht, bereit für Backend-Integration.
+
+**Letzte Änderungen (UI-Optimierung):**
+- Credits-Panel erweitert um laufende Ausgaben-Anzeige
+- Komplette deutsche Lokalisierung implementiert
+- Icon-basierte Navigation für bessere UX
+- Fleet Status Panel entfernt zur Vermeidung von Unübersichtlichkeit
+- Benutzerfreundliche Darstellung mit Farbkodierung (gelb/rot)
 
 **Nächster Meilenstein:** Supabase Datenbank-Setup und User Authentication
