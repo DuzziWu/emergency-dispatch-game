@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* Dark-Mode-First Theme */
+html {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+body {
+  background: #0a0a0a;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevent scrollbars for fullscreen map */
+}
+
+/* Custom utilities for the game */
+.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.overlay > * {
+  pointer-events: auto;
+}
+
+/* Leaflet specific styles for dark theme */
+.leaflet-container {
+  background: #0a0a0a;
+}
+
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+}
+
+.leaflet-control-attribution a {
+  color: #60a5fa !important;
+}

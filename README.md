@@ -1,104 +1,36 @@
-# Emergency Dispatch Game 🚨
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Ein browser-basiertes Notfall-Dispatch-Simulationsspiel mit dunklem, minimalistischem Design. Ähnlich wie "Leitstellenspiel", aber mit moderner Technologie und verbesserter Benutzererfahrung.
+## Getting Started
 
-## 🎮 Spielkonzept
+First, run the development server:
 
-Spieler können:
-- Feuerwachen und Rettungsstationen verwalten
-- Fahrzeuge kaufen und verwalten
-- Notfälle empfangen und Fahrzeuge dorthin entsenden
-- Ihr Operationsgebiet erweitern
-- Realistische Routenplanung mit OpenRouteService API nutzen
-
-## 🛠 Tech Stack
-
-- **Backend:** Laravel 11
-- **Frontend:** Vue.js 3 mit Composition API
-- **Datenbank:** Supabase (PostgreSQL)
-- **Karten:** Leaflet.js mit OpenStreetMap
-- **Routing:** OpenRouteService API
-- **Styling:** Tailwind CSS (Dark Theme)
-- **Real-time:** Laravel WebSockets/Pusher (geplant)
-- **Version Control:** Git mit GitHub
-
-## 🎨 Design-Prinzipien
-
-- **Dark Theme Focus:** Alle UI-Komponenten verwenden dunkle Farben
-- **Minimalistisches Design:** Saubere, ikonbasierte Oberfläche mit minimalem Text
-- **Mobile Responsive:** Funktioniert gut auf Desktop und Mobile
-- **Performance First:** Optimiert für schnelle Ladezeiten
-- **Real-world Accuracy:** Notfallstandorte entsprechen realistischen Orten
-
-## 🚀 Entwicklung
-
-### Voraussetzungen
-- PHP 8.2+
-- Composer
-- Node.js 18+
-- Git
-
-### Installation
 ```bash
-# Repository klonen
-git clone [repository-url]
-cd emergency-dispatch-game
-
-# Dependencies installieren
-composer install
-npm install
-
-# Environment konfigurieren
-cp .env.example .env
-php artisan key:generate
-
-# Datenbank migrieren
-php artisan migrate
-
-# Development Server starten
-php artisan serve
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## 📋 Roadmap
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Milestone 1: Projekt Setup & Infrastructure ✅
-- [x] Projekt initialisieren
-- [x] Git Repository einrichten
-- [ ] Laravel Backend Setup
-- [ ] Vue.js Frontend Integration
-- [ ] Supabase Datenbankverbindung
-- [ ] GitHub Repository Setup
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### Milestone 2: Core Game Features (geplant)
-- [ ] Benutzerauthentifizierung
-- [ ] Station Management
-- [ ] Fahrzeug Management
-- [ ] Notfall-System
-- [ ] Kartenintegration
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-### Milestone 3: Advanced Features (geplant)
-- [ ] Real-time Updates
-- [ ] Multiplayer Support
-- [ ] Statistiken & Analytics
-- [ ] Mobile App
+## Learn More
 
-## 🤝 Beitragen
+To learn more about Next.js, take a look at the following resources:
 
-1. Fork das Repository
-2. Erstelle einen Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Committe deine Änderungen (`git commit -m 'Add some AmazingFeature'`)
-4. Push zum Branch (`git push origin feature/AmazingFeature`)
-5. Öffne eine Pull Request
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## 📄 Lizenz
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-Dieses Projekt steht unter der MIT-Lizenz. Siehe `LICENSE` für Details.
+## Deploy on Vercel
 
-## 📞 Kontakt
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Projekt erstellt von [Dein Name] - [deine-email@example.com]
-
----
-
-**Status:** 🚧 In Entwicklung - Milestone 1
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
