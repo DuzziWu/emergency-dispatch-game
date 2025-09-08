@@ -1,0 +1,141 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Supabase-Datenbankschema erstellen",
+        "description": "Erstelle die PostgreSQL-Datenbankstruktur mit allen erforderlichen Tabellen, Indizes und Row Level Security (RLS) Richtlinien in Supabase.",
+        "details": "Implementiere alle Tabellen aus src/types/database.ts: profiles, stations, vehicles, missions, station_blueprints, vehicle_types, mission_types. Konfiguriere RLS-Policies für Multi-Tenant-Isolation mit user_id-Filterung. Erstelle Indizes für Leistungsoptimierung bei Geo-Abfragen (lat/lng) und häufig verwendeten Feldern. Nutze Supabase Dashboard oder SQL-Migration-Scripts für die Schema-Erstellung.",
+        "testStrategy": "Teste Schema-Erstellung durch Verbindung mit Supabase Client, prüfe RLS-Policies mit Test-Benutzerdaten, validiere Indizes durch EXPLAIN-Abfragen für geografische Suchen.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Benutzer-Authentifizierung implementieren",
+        "description": "Implementiere vollständiges Authentifizierungssystem mit Email/Passwort-Registrierung, Login und Benutzerprofil-Management.",
+        "details": "Nutze Supabase Auth für Email/Passwort-Authentifizierung. Erstelle Auth-Komponenten: LoginForm, RegisterForm, UserProfile. Implementiere AuthProvider mit React Context für globale Benutzerstatus-Verwaltung. Konfiguriere Authentifizierung in src/lib/supabase.ts mit Session-Handling. Stelle German localization für alle Auth-UI-Elemente sicher.",
+        "testStrategy": "Teste Registrierung, Login, Logout-Flows. Prüfe Session-Persistenz bei Browser-Refresh. Validiere Error-Handling für falsche Anmeldedaten und bereits existierende Benutzer.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Heimatstadt-Auswahl mit Geocoding",
+        "description": "Implementiere Heimatstadt-Auswahl für neue Benutzer mit Nominatim-Geocoding zur Koordinatenermittlung.",
+        "details": "Erstelle CitySelector-Komponente mit Autocomplete-Eingabe für Städte. Integriere Nominatim OpenStreetMap API für Stadt-zu-Koordinaten-Konvertierung. Speichere home_city_name, home_city_lat, home_city_lng in profiles-Tabelle. Implementiere Onboarding-Flow nach der Registrierung. Verwende debounced API-Calls für bessere Performance.",
+        "testStrategy": "Teste Stadtsuche mit verschiedenen deutschen Städten. Prüfe Koordinatengenauigkeit durch Kartenvergleich. Validiere Error-Handling bei API-Fehlern oder ungültigen Städtenamen.",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Wachenblaupausen-Daten einpflegen",
+        "description": "Erstelle und importiere Wachenblaupausen-Daten basierend auf realen Feuerwehr- und Rettungswachen-Standorten.",
+        "details": "Sammle reale Wachen-Standortdaten aus OpenStreetMap für deutsche Städte. Erstelle station_blueprints mit name, lat, lng, city, type (fire_station/ems_station). Implementiere Daten-Seeding-Script oder SQL-Import für Massendaten. Organisiere Daten nach Städten für effiziente Abfragen. Nutze Overpass API für automatisierte Datensammlung.",
+        "testStrategy": "Validiere importierte Daten durch Stichproben-Überprüfung der Koordinaten. Teste Abfrage-Performance für stadtspezifische Blueprint-Suchen. Prüfe Datenqualität auf Duplikate und falsche Kategorisierungen.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Wachenbau-System entwickeln",
+        "description": "Implementiere Wachenbau-Interface mit Blueprint-Auswahl, Kostenberechnung und persistenter Speicherung.",
+        "details": "Erstelle BuildMenu-Komponente mit verfügbaren Blueprints basierend auf Benutzer-Heimatstadt. Implementiere Kaufbestätigung mit Credits-Abzug und station-Tabellen-Eintrag. Füge Wachen-Marker auf Karte mit typ-spezifischen Icons (rot/Flamme für Feuerwehr, orange/Medizin für Rettung) hinzu. Integriere mit GameLayout-Button 'Bauen'. Verwende Supabase real-time subscriptions für sofortige Karten-Updates.",
+        "testStrategy": "Teste Wachenbau-Workflow von Blueprint-Auswahl bis Karten-Anzeige. Prüfe Credits-Abzug und Validierung unzureichender Mittel. Validiere Echtzeit-Updates bei mehreren Browser-Tabs.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Fahrzeugtypen und -verwaltung",
+        "description": "Implementiere Fahrzeugtypen-System mit Kaufmöglichkeiten und Stationszuordnung.",
+        "details": "Erstelle vehicle_types-Tabellendaten mit deutschen Fahrzeugnamen (LF20, RTW, etc.), Kosten, Personalanforderungen und Fähigkeiten (firefighting, ems, rescue). Implementiere VehicleShop-Komponente für Fahrzeugkauf pro Wache. Erstelle Vehicle-Management-Interface innerhalb der Wachen-Details. Berücksichtige vehicle_slots-Limits pro Wachenlevel. Implementiere Fahrzeugstatus-Tracking (at_station, en_route, on_scene, returning).",
+        "testStrategy": "Teste Fahrzeugkauf mit verschiedenen Fahrzeugtypen und Wachen. Prüfe Slot-Limits und Stationstyp-Kompatibilität. Validiere Fahrzeugstatus-Updates und Persistierung.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Einsatzgenerierung mit OpenStreetMap",
+        "description": "Entwickle server-seitiges Einsatzgenerierungs-System mit realistischen Standorten basierend auf OpenStreetMap-Daten.",
+        "details": "Implementiere Supabase Edge Function für Einsatzgenerierung mit Overpass API-Integration. Erstelle mission_types mit deutschen Einsatzarten (Wohnungsbrand, Verkehrsunfall, etc.) und Standorttyp-Zuordnungen (road, residential, commercial). Implementiere geografische Einsatzverteilung basierend auf OSM-Landuse-Daten. Verwende Wahrscheinlichkeits-basierte Auswahlalgorithmen für realistische Einsatzverteilung. Cache häufig verwendete OSM-Abfragen für Performance.",
+        "testStrategy": "Teste Einsatzgenerierung für verschiedene Städte und Standorttypen. Prüfe Einsatzverteilung auf Realismus und geografische Genauigkeit. Validiere Edge Function-Performance und Error-Handling.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Echtzeit-Einsatzanzeige auf Karte",
+        "description": "Implementiere Live-Einsatzanzeige mit blinkenden Markern und detaillierter Einsatzinformation.",
+        "details": "Erweitere LeafletMap.tsx um Mission-Marker mit blinkender Animation für neue Einsätze. Implementiere MissionPopup mit Einsatzdetails (caller_text, Standort, benötigte Fahrzeuge). Integriere Supabase real-time subscriptions für Live-Mission-Updates. Aktualisiere GameLayout 'Aktive Einsätze' Panel mit realen Daten. Implementiere Click-Handler für Mission-Marker zur Anzeige von Einsatzdetails.",
+        "testStrategy": "Teste Echtzeit-Mission-Updates mit mehreren Browser-Instanzen. Prüfe Marker-Animationen und Popup-Funktionalität. Validiere Performance bei vielen gleichzeitigen Einsätzen.",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Fahrzeug-Alarmierung und Routing",
+        "description": "Implementiere Fahrzeugalarmierung mit OSRM-basiertem Routing und Echtzeit-Fahrzeugverfolgung.",
+        "details": "Erstelle DispatchModal für Fahrzeugauswahl und Einsatzbestätigung. Integriere OSRM API für reale Straßenrouten-Berechnung zwischen Wachen und Einsatzorten. Implementiere Fahrzeug-Bewegungsanimationen entlang berechneter Routen auf der Karte. Aktualisiere Fahrzeugstatus (en_route, on_scene, returning) mit Echtzeit-Synchronisation. Erstelle Route-Visualisierung auf Karte während Fahrt.",
+        "testStrategy": "Teste Routenberechnung mit verschiedenen Wachen-Einsatz-Kombinationen. Prüfe Fahrzeuganimationen und Status-Updates. Validiere OSRM API-Integration und Error-Handling bei Routing-Fehlern.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Einsatz-Scouting und Abschluss-System",
+        "description": "Implementiere Scouting-Mechanik und Einsatzabschluss mit probabilistischen Outcomes und Belohnungen.",
+        "details": "Erstelle Scouting-Interface für eingetroffene Fahrzeuge mit 'Einsatz erkunden' Option. Implementiere probabilistische Outcome-Auswahl basierend auf mission_types possible_outcomes. Erstelle MissionCompletion-Dialog mit Ergebnis-Anzeige und Belohnungsberechnung. Aktualisiere Benutzer-Credits basierend auf Einsatzerfolg. Implementiere Einsatzstatus-Übergänge (new → scouted → completed/failed) mit Validierung.",
+        "testStrategy": "Teste Scouting-Workflow mit verschiedenen Einsatztypen. Prüfe probabilistische Outcomes auf Korrektheit der Wahrscheinlichkeiten. Validiere Credits-Aktualisierung und Einsatzstatus-Persistierung.",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-08T10:00:28.322Z",
+      "updated": "2025-09-08T10:00:28.322Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

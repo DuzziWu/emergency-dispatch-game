@@ -1,0 +1,196 @@
+<context>
+# Overview  
+Emergency Dispatch Game (Leitstellenspiel NextGen) is a modern browser-based emergency dispatch simulation game where players manage fire and EMS stations, purchase vehicles, and respond to automatically generated incidents on real maps using actual road networks. This project aims to create a minimalistic, dark-mode-first, and extensible reimplementation of the classic Leitstellenspiel concept as a modern web game. The game focuses on realistic emergency response management with a map-centric interface, using real-world geographic data and road networks for authentic emergency dispatch simulation.
+
+# Core Features  
+**Station Management System:**
+- Players can build and upgrade fire stations and EMS stations at real-world locations
+- Leveling system for stations affecting operational capacity and mission radius
+- Extension system for stations (training rooms, EMS annexes, additional vehicle bays)
+- Blueprint-based station placement using real geographic data
+
+**Fleet Management:**
+- Purchase and manage various emergency vehicles (fire trucks, ambulances, rescue vehicles)
+- Each vehicle type has specific capabilities (firefighting, EMS, rescue ratings)
+- Real-time vehicle status tracking (at_station, en_route, on_scene, returning)
+- Personnel assignment and capacity management for each vehicle
+
+**Mission Generation & Response:**
+- Server-side mission generation using OpenStreetMap/Overpass API for realistic incident locations
+- Dynamic incident types based on location types (roads, residential, commercial areas)
+- Probability-based outcomes system with scouting mechanics
+- Real-time mission updates and multiplayer synchronization via Supabase
+
+**Real-time Map Interface:**
+- Leaflet.js-based dark-themed map using CartoDB Dark Matter tiles
+- Live vehicle tracking with route animations along actual roads
+- Station markers with type-specific icons (fire=red/flame, EMS=orange/medical)
+- Blinking mission markers for new incidents
+- German-localized minimalistic overlay UI
+
+# User Experience  
+**User Personas:**
+- Emergency simulation game enthusiasts familiar with Leitstellenspiel-style games
+- Strategy game players interested in resource management and logistics
+- Users seeking realistic emergency response simulation experiences
+
+**Key User Flows:**
+1. Registration & Onboarding: Email/password signup ’ home city selection ’ geocoding ’ main map view
+2. Station Building: Access build menu ’ select blueprint location ’ confirm purchase ’ station appears on map
+3. Mission Response: New mission appears ’ click mission marker ’ view incident details ’ select vehicles ’ dispatch ’ watch animated response ’ mission completion
+4. Fleet Management: Click station ’ manage vehicles ’ purchase new vehicles ’ assign personnel
+
+**UI/UX Considerations:**
+- Dark-mode-first design philosophy with icon-based navigation
+- Fullscreen map with transparent overlay UI elements positioned at screen edges
+- German localization throughout the interface
+- Color-coded information system (yellow for money/missions, red for expenses)
+- Minimalistic design focusing on the map as the central gameplay element
+</context>
+
+<PRD>
+# Technical Architecture  
+**System Components:**
+- **Frontend:** Next.js 15.5.2 with TypeScript and App Router architecture
+- **Styling:** TailwindCSS v4 with custom dark-theme color palette
+- **Maps:** Leaflet.js with dynamic imports for SSR compatibility
+- **Backend:** Supabase (PostgreSQL database, authentication, real-time subscriptions)
+- **Server Logic:** Supabase Edge Functions (Deno) for mission generation and game logic
+- **Routing Engine:** OSRM or Mapbox Directions API for real route calculations
+
+**Data Models:**
+- `profiles`: User data with home city coordinates and credits
+- `stations`: Player-built stations with levels, extensions, and capacity
+- `vehicles`: Fleet management with real-time status tracking
+- `missions`: Generated incidents with realistic locations and outcomes
+- `station_blueprints`: Template stations from real-world data
+- `vehicle_types`: Available vehicle configurations and capabilities
+- `mission_types`: Incident templates with probability-based outcomes
+
+**APIs and Integrations:**
+- OpenStreetMap/Overpass API for realistic incident location generation
+- Geocoding service (Nominatim) for city-to-coordinates conversion
+- OSRM/Mapbox Directions API for real road route calculations
+- Supabase Real-time subscriptions for live multiplayer updates
+
+**Infrastructure Requirements:**
+- Supabase project with PostgreSQL database and Row Level Security (RLS)
+- Edge Functions for server-side game logic and mission generation
+- Real-time subscriptions for multiplayer synchronization
+- Geographic data processing for mission location generation
+
+# Development Roadmap  
+**Phase 1: Frontend Foundation ( COMPLETED)**
+- Next.js project setup with TypeScript and proper tooling
+- TailwindCSS v4 integration with dark-mode-first design
+- Leaflet.js map integration with SSR optimization
+- German-localized game interface with icon-based navigation
+- Database TypeScript type definitions
+- Basic UI overlay with credits display, action buttons, and mission panel
+
+**Phase 2: Backend Integration (= CURRENT FOCUS)**
+- Supabase database schema creation and RLS policies
+- User authentication system implementation
+- Station blueprint data seeding
+- Basic user profile management with home city selection
+
+**Phase 3: Core Gameplay Systems**
+- Mission generation system using OpenStreetMap data
+- Station building and management functionality
+- Basic vehicle purchase and management
+- Real-time mission display on map
+
+**Phase 4: Advanced Features**
+- Vehicle dispatch and routing with real road calculations
+- Mission scouting and completion mechanics  
+- Advanced station management with extensions and leveling
+- Fleet status tracking and personnel management
+
+**Phase 5: Real-time Multiplayer**
+- Live mission updates via Supabase subscriptions
+- Multi-player synchronization and conflict resolution
+- Advanced mission generation with dynamic difficulty
+- Performance optimization for concurrent users
+
+**Phase 6: Polish & Extensions**
+- Advanced UI/UX refinements
+- Additional vehicle types and mission scenarios  
+- Alliance/multiplayer cooperation features
+- Analytics and progression tracking
+
+# Logical Dependency Chain
+**Foundation Layer (Phase 1 ):**
+- Project setup and basic UI must come first to establish development environment
+- Map integration is critical as it's the central interface element
+- TypeScript types must be defined early to ensure type safety throughout development
+
+**Backend Infrastructure (Phase 2):**
+- Database schema creation blocks all data-dependent features
+- User authentication must precede any user-specific functionality
+- Station blueprints needed before station building can be implemented
+
+**Core Game Loop (Phase 3-4):**
+- Mission generation depends on database schema and OpenStreetMap integration
+- Station building requires blueprint data and user authentication
+- Vehicle management needs station system as foundation
+- Real routing calculations needed before advanced mission mechanics
+
+**Real-time Features (Phase 5):**
+- Supabase real-time subscriptions require stable core systems
+- Multiplayer features need robust single-player mechanics first
+- Performance optimization comes after core functionality is proven
+
+**Enhancement Layer (Phase 6):**
+- Advanced features build upon proven core mechanics
+- UI polish happens after functional requirements are met
+- Extensions require stable foundation systems
+
+# Risks and Mitigations  
+**Technical Challenges:**
+- **OpenStreetMap Data Processing:** Complex geographic queries may be slow
+  - *Mitigation:* Cache common location queries and implement efficient data structures
+- **Real-time Synchronization:** Managing concurrent user actions and mission states
+  - *Mitigation:* Use Supabase's built-in conflict resolution and implement optimistic updates
+- **Route Calculation Performance:** Real road routing for multiple vehicles simultaneously
+  - *Mitigation:* Start with OSRM for self-hosted performance, batch route requests efficiently
+
+**MVP Scope Management:**
+- **Feature Creep Risk:** Extensive specification could lead to overengineering
+  - *Mitigation:* Focus on core game loop first (mission generation ’ response ’ completion)
+- **Map Complexity:** Real geographic data adds significant complexity
+  - *Mitigation:* Start with simplified location generation, enhance incrementally
+
+**Resource Constraints:**
+- **External API Dependencies:** OpenStreetMap and routing services have rate limits
+  - *Mitigation:* Implement caching strategies and consider self-hosted alternatives
+- **Database Performance:** Real-time updates for multiple users may strain resources
+  - *Mitigation:* Use Supabase's built-in scaling and implement efficient queries with proper indexing
+
+**Development Dependencies:**
+- **SSR Complexity:** Map libraries traditionally don't work well with server-side rendering
+  - *Mitigation:* Already solved with dynamic imports approach in Phase 1
+- **German Localization:** Maintaining consistent language throughout development
+  - *Mitigation:* Establish translation patterns early and document them
+
+# Appendix  
+**Research Findings:**
+- Leaflet.js chosen over Mapbox GL JS for better open-source compatibility and easier setup
+- CartoDB Dark Matter tiles provide optimal dark-theme map visualization
+- Supabase Edge Functions in Deno provide better performance than traditional serverless for game logic
+- OpenStreetMap Overpass API offers comprehensive geographic data for realistic mission generation
+
+**Technical Specifications:**
+- Node.js environment with npm package management
+- TypeScript strict mode for enhanced code quality
+- Turbopack integration for faster development builds (`--turbopack` flag)
+- Absolute imports using `@/` prefix for cleaner code organization
+- Row Level Security (RLS) for multi-tenant data isolation in Supabase
+- Real-time subscriptions filtered by `user_id` for performance optimization
+
+**Current Implementation Status:**
+- Development server runs on http://localhost:3000
+- Git workflow established with main/development branches
+- All Phase 1 objectives completed and ready for backend integration
+- Database schema fully designed with TypeScript interfaces
+- UI optimized with German localization and icon-based navigation system
+</PRD>
