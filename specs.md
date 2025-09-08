@@ -15,16 +15,16 @@ Dieses Dokument beschreibt die technische Architektur und die Spezifikationen f�
 
 #### **2. Technologie-Stack** ✅ IMPLEMENTIERT
 
-- **Datenbank & Authentifizierung:** **Supabase** ✅ KONFIGURIERT
+- **Datenbank & Authentifizierung:** **Supabase** ✅ IMPLEMENTIERT
   - Nutzung von Supabase Auth für die komplette Benutzerverwaltung (Registrierung, Login, Passwort-Reset). (TODO)
-  - Nutzung von Supabase's PostgreSQL-Datenbank für alle Spieldaten. (TODO) 
+  - Nutzung von Supabase's PostgreSQL-Datenbank für alle Spieldaten. ✅ IMPLEMENTIERT
   - Nutzung von Realtime Subscriptions, um Datenänderungen (z.B. Fahrzeugstatus, neue Einsätze) live auf den Client zu pushen. (TODO)
   - Nutzung von Supabase Edge Functions (Deno) für serverseitige Logik (z.B. Einsatzgenerierung, Vergütungsberechnung). (TODO)
 - **Frontend-Framework:** **Next.js 15.5.2 mit TypeScript** ✅ IMPLEMENTIERT
   - Moderne React-basierte Architektur mit App Router
   - TypeScript für Typsicherheit ✅ IMPLEMENTIERT
   - SSR-optimiert mit Dynamic Imports für Client-Only Komponenten ✅ IMPLEMENTIERT
-- **Styling:** **TailwindCSS v4** ✅ IMPLEMENTIERT  
+- **Styling:** **TailwindCSS v4** ✅ IMPLEMENTIERT
   - Dark-Mode-First Design ✅ IMPLEMENTIERT
   - Custom Color Palette für Fire/EMS/Mission Themes ✅ IMPLEMENTIERT
 - **Karten-Bibliothek:** **Leaflet.js** ✅ IMPLEMENTIERT
@@ -36,9 +36,10 @@ Dieses Dokument beschreibt die technische Architektur und die Spezifikationen f�
   - **Mapbox Directions API:** Ein bezahlter Service, der sehr einfach zu integrieren ist. Kosten fallen pro API-Aufruf an. Für den Start ideal.
 - **Versionierung:** **Git** (gehostet auf GitHub, GitLab oder Bitbucket) ✅ AKTIV
 
-#### **3. Datenbankarchitektur (Supabase PostgreSQL Schema)** (TODO - TYPEN DEFINIERT)
+#### **3. Datenbankarchitektur (Supabase PostgreSQL Schema)** ✅ IMPLEMENTIERT
 
 TypeScript-Typen bereits implementiert in `src/types/database.ts` ✅
+SQL-Schema mit Migrations erstellt und in Supabase ausgeführt ✅
 
 Hier ist ein Vorschlag für die zentralen Tabellen:
 
@@ -179,36 +180,23 @@ f. Erstelle einen neuen Eintrag in der `missions`-Tabelle mit `status: 'new'`, d
 **4.5. Wachenmanagement**
 
 1.  **UI:** Klick auf eine eigene Wache öffnet ein Seitenmenü mit den Tabs: Wache, Fahrzeuge, Personal, Erweiterungen.
-2.  **Tab "Wache":** Zeigt Level, aktuelle Stellplatzanzahl, Personalkapazität. Button zum Aufleveln der Wache (kostet `credits`).
-3.  **Tab "Fahrzeuge":** Zeigt eine Liste der Stellplätze an.
-    - Besetzte Plätze zeigen das geparkte Fahrzeug.
-    - Leere Plätze haben einen "Fahrzeug kaufen"-Button. Ein Klick öffnet ein Kaufmenü, das nur Fahrzeuge anzeigt, die zum Wachentyp passen (`required_station_type`).
-4.  **Tab "Personal":** Liste des Personals, deren Ausbildungsstand. Button zum Anwerben von neuem Personal.
-5.  **Tab "Erweiterungen":** Zeigt mögliche Erweiterungen (Stellplätze, Schulungsraum, Rettungsdienst-Anbau) und deren Kosten an. Der Bau setzt den Status der Erweiterung auf "im Bau" für eine bestimmte Zeit.
-
-#### **5. Skalierbarkeit & Zukünftige Erweiterungen**
-
-Die gewählte Architektur ist sehr gut erweiterbar:
-
-- **Neue Fahrzeugtypen:** Ein neuer Eintrag in der `vehicle_types`-Tabelle genügt.
-- **Neue Einsätze:** Ein neuer Eintrag in `mission_types` mit den entsprechenden Regeln.
-- **Verbände & Multiplayer:** Eine neue Tabelle `alliances` könnte hinzugefügt werden. Einsätze könnten eine `alliance_id` bekommen, um sie für Verbandsmitglieder sichtbar zu machen.
-- **Schichtsystem für Personal:** Die `personnel`-Tabelle könnte um einen `shift_status` (im Dienst, frei) erweitert werden.
-- **Events:** Über eine Edge Function können zeitlich begrenzte Events gestartet werden, die spezielle `mission_types` mit höheren Vergütungen generieren.
+2.  **Tab "Wache":** Zeigt Levresearch
 
 ---
 
-## **📋 AKTUELLER IMPLEMENTIERUNGSSTATUS** 
+## **📋 AKTUELLER IMPLEMENTIERUNGSSTATUS**
 
 ### ✅ **ABGESCHLOSSEN (Phase 1: Grundgerüst)**
 
 1. **Projekt-Setup:**
+
    - Next.js 15.5.2 mit TypeScript initialisiert
    - TailwindCSS v4 konfiguriert (Dark-Mode-First)
    - Projektstruktur angelegt (components, types, hooks, utils, store, services)
    - Supabase Client konfiguriert (.env.local, supabase.ts)
 
 2. **UI/UX Grundlagen:**
+
    - Vollbild-Karte mit Leaflet.js implementiert
    - Dark Theme mit CartoDB Dark Matter Tiles
    - Responsive Overlay-UI mit Game Layout (deutsch lokalisiert):
@@ -226,17 +214,37 @@ Die gewählte Architektur ist sehr gut erweiterbar:
    - TailwindCSS v4 Migration abgeschlossen
    - Development Server läuft auf http://localhost:3000
 
-### 🔄 **NÄCHSTE SCHRITTE (Phase 2: Backend Integration)**
+### ✅ **ABGESCHLOSSEN (Phase 2: Backend Integration)**
 
 1. **Supabase Datenbank:**
-   - Tabellen-Schema in Supabase erstellen
-   - RLS (Row Level Security) Policies einrichten
-   - Auth-System implementieren
+
+   - Tabellen-Schema in Supabase erstellt ✅
+   - RLS (Row Level Security) Policies eingerichtet ✅
+   - Verbindung zur lokalen App getestet ✅
+   - 12 realistische deutsche Fahrzeugtypen geladen ✅
+   - Dokumentation für Erweiterungen erstellt ✅
+
+2. **Datenbankstruktur:**
+
+   - Alle Tabellen (profiles, stations, vehicles, missions, etc.) ✅
+   - ENUMs für station_type, vehicle_status, mission_status ✅
+   - JSONB-Felder für capabilities und extensions ✅
+   - Indizes für Performance-Optimierung ✅
+   - Constraints für Datenvalidierung ✅
+
+### 🔄 **NÄCHSTE SCHRITTE (Phase 3: User Authentication & Gameplay)**
+
+1. **User Authentication:**
+
+   - User Registration/Login Flow implementieren
+   - Stadt-Auswahl und Koordinaten-Speicherung
+   - Profil-Management Interface
 
 2. **Basis-Gameplay:**
-   - User Registration/Login Flow
-   - Stadt-Auswahl und Koordinaten-Speicherung
+
    - Erste Blueprint-Daten für Wachen einpflegen
+   - Station Building System
+   - Vehicle Purchase System
 
 3. **Karten-Features:**
    - OpenStreetMap/Overpass API Integration testen
@@ -246,7 +254,7 @@ Die gewählte Architektur ist sehr gut erweiterbar:
 ### 📋 **TODO (Phase 3+: Spielmechanik)**
 
 - Mission Generation System
-- Vehicle Management 
+- Vehicle Management
 - Real-time Updates via Supabase
 - Routing Integration (OSRM/Mapbox)
 - Station Building System
@@ -254,13 +262,44 @@ Die gewählte Architektur ist sehr gut erweiterbar:
 
 ---
 
-**Status:** ✅ **Phase 1 abgeschlossen & UI optimiert** - Grundgerüst mit deutscher Lokalisierung steht, bereit für Backend-Integration.
+**Status:** ✅ **Phase 1 & 2 vollständig abgeschlossen**
 
-**Letzte Änderungen (UI-Optimierung):**
-- Credits-Panel erweitert um laufende Ausgaben-Anzeige
-- Komplette deutsche Lokalisierung implementiert
-- Icon-basierte Navigation für bessere UX
-- Fleet Status Panel entfernt zur Vermeidung von Unübersichtlichkeit
-- Benutzerfreundliche Darstellung mit Farbkodierung (gelb/rot)
+- **Phase 1:** Grundgerüst mit vollständiger deutscher Lokalisierung und optimierter Benutzeroberfläche
+- **Phase 2:** Supabase Backend-Integration mit vollständigem Datenbankschema, RLS Policies und Fahrzeugdaten
 
-**Nächster Meilenstein:** Supabase Datenbank-Setup und User Authentication
+Das Projekt ist bereit für Phase 3: User Authentication und erste Gameplay-Features.
+
+## **🎨 Abgeschlossene UI-Optimierungen (Commit: 70e8021)**
+
+### **💰 Erweiterte Credits-Anzeige:**
+
+- Euro-Symbol Icon für visuelle Klarheit
+- Laufende Ausgaben pro Stunde (-€ 450/h) mit rotem Pfeil-Icon
+- Verbesserte Panelgröße und Lesbarkeit
+
+### **🇩🇪 Deutsche Lokalisierung:**
+
+- "Settings" → "Einstellungen" (mit deutschem Tooltip)
+- "Build Menu" → "Bauen" (mit deutschem Tooltip)
+- "Active Missions" → "Aktive Einsätze" (mit Warnsymbol-Icon)
+- "No active missions" → "Keine aktiven Einsätze"
+
+### **🎯 UX-Verbesserungen:**
+
+- Fleet Status Panel komplett entfernt (verhindert Unübersichtlichkeit)
+- Icon-basierte Header statt Text-Überschriften
+- Farbkodiertes Informationssystem (gelb/rot)
+- Verbesserte visuelle Hierarchie und Abstände
+
+## **📋 Git-Workflow etabliert:**
+
+- **main Branch:** Stabile Version mit allen UI-Optimierungen
+- **development Branch:** Aktiver Entwicklungszweig für Phase 2
+- Vollständige Synchronisation zwischen Branches abgeschlossen
+- Dokumentation auf aktuellem Stand
+
+---
+
+**Nächster Meilenstein:** Supabase Datenbank-Setup und User Authentication (Phase 2)
+
+**Arbeitsbereich:** Development Branch bereit für Backend-Integration
