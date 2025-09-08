@@ -52,7 +52,15 @@ export default function LeafletMap({
         mapInstanceRef.current = null
       }
     }
+  }, [])
+
+  // Update map center when coordinates change
+  useEffect(() => {
+    if (mapInstanceRef.current && center) {
+      mapInstanceRef.current.setView(center, zoom, { animate: true })
+    }
   }, [center, zoom])
+
 
   return <div ref={mapRef} className={className} />
 }

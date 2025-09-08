@@ -18,7 +18,7 @@ INSERT INTO vehicle_types (name, cost, required_station_type, personnel_requirem
 ('Hilfeleistungslöschgruppenfahrzeug HLF 20', 550000, 'fire_station', 8, 
  '{"firefighting": 110, "ems": 0, "rescue": 90}'),
  
-('Rüstwagen RW 2', 400000, 'fire_station', 4, 
+('Rüstwagen RW', 400000, 'fire_station', 4, 
  '{"firefighting": 20, "ems": 0, "rescue": 120}'),
  
 ('Einsatzleitwagen ELW 1', 150000, 'fire_station', 2, 
