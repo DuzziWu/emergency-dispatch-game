@@ -18,15 +18,18 @@ interface LeafletMapProps {
   center?: [number, number]
   zoom?: number
   className?: string
+  onMapReady?: (map: L.Map) => void
 }
 
 export default function LeafletMap({ 
   center = [51.1657, 10.4515], // Germany center
   zoom = 6,
-  className = "fullscreen"
+  className = "fullscreen",
+  onMapReady
 }: LeafletMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
+  const hasInitialized = useRef(false)
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -44,6 +47,12 @@ export default function LeafletMap({
     }).addTo(map)
 
     mapInstanceRef.current = map
+    hasInitialized.current = true
+
+    // Notify parent that map is ready
+    if (onMapReady) {
+      onMapReady(map)
+    }
 
     // Cleanup function
     return () => {
@@ -54,10 +63,11 @@ export default function LeafletMap({
     }
   }, [])
 
-  // Update map center when coordinates change
+  // Update map center when coordinates change (only on first load)
   useEffect(() => {
-    if (mapInstanceRef.current && center) {
+    if (mapInstanceRef.current && center && !hasInitialized.current) {
       mapInstanceRef.current.setView(center, zoom, { animate: true })
+      hasInitialized.current = true
     }
   }, [center, zoom])
 

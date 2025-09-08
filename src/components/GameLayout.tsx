@@ -1,8 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import Map from './Map'
+import StationManagement from './StationManagement'
+import StationPurchaseModal from './StationPurchaseModal'
+
 import { useAuth } from '@/contexts/AuthContext'
+import { Station, StationBlueprint } from '@/types/database'
+import { supabase } from '@/lib/supabase'
+
+// Dynamic imports for map components to avoid SSR issues  
+const StationMarker = dynamic(() => import('./StationMarker'), { ssr: false })
+const PurchasableStationMarker = dynamic(() => import('./PurchasableStationMarker'), { ssr: false })
+
+interface StationWithBlueprint extends Station {
+  blueprint: StationBlueprint
+}
 
 interface GameLayoutProps {
   children?: React.ReactNode
@@ -11,9 +25,131 @@ interface GameLayoutProps {
 export default function GameLayout({ children }: GameLayoutProps) {
   const { profile, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [buildMode, setBuildMode] = useState(false)
+  const [showStationManagement, setShowStationManagement] = useState(false)
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+  const [selectedStation, setSelectedStation] = useState<StationWithBlueprint | null>(null)
+  const [selectedBlueprint, setSelectedBlueprint] = useState<StationBlueprint | null>(null)
+  const [userStations, setUserStations] = useState<StationWithBlueprint[]>([])
+  const [availableBlueprints, setAvailableBlueprints] = useState<StationBlueprint[]>([])
+  const [map, setMap] = useState<any>(null)
 
   const handleLogout = async () => {
     await signOut()
+  }
+
+  const handleMapReady = (mapInstance: any) => {
+    setMap(mapInstance)
+  }
+
+  // Add map event listeners when buildMode changes or map is available
+  useEffect(() => {
+    if (!map) return
+
+    const updateBlueprints = () => {
+      fetchAvailableBlueprints()
+    }
+
+    if (buildMode) {
+      // Add listeners when entering build mode
+      map.on('moveend', updateBlueprints)
+      map.on('zoomend', updateBlueprints)
+    } else {
+      // Remove listeners when exiting build mode
+      map.off('moveend', updateBlueprints)
+      map.off('zoomend', updateBlueprints)
+    }
+
+    // Cleanup on unmount or when map/buildMode changes
+    return () => {
+      if (map) {
+        map.off('moveend', updateBlueprints)
+        map.off('zoomend', updateBlueprints)
+      }
+    }
+  }, [map, buildMode])
+
+  const handleStationClick = (station: StationWithBlueprint) => {
+    setSelectedStation(station)
+    setShowStationManagement(true)
+  }
+
+  const handleBlueprintClick = (blueprint: StationBlueprint) => {
+    setSelectedBlueprint(blueprint)
+    setShowPurchaseModal(true)
+  }
+
+  const toggleBuildMode = () => {
+    const newBuildMode = !buildMode
+    setBuildMode(newBuildMode)
+    
+    if (newBuildMode) {
+      // Entering build mode - fetch blueprints
+      fetchAvailableBlueprints()
+    } else {
+      // Exiting build mode - clear blueprints
+      setAvailableBlueprints([])
+    }
+  }
+
+  // Load user's stations
+  useEffect(() => {
+    if (profile) {
+      fetchUserStations()
+    }
+  }, [profile])
+
+  const fetchUserStations = async () => {
+    if (!profile) return
+
+    try {
+      const { data, error } = await supabase
+        .from('stations')
+        .select(`
+          *,
+          blueprint:station_blueprints(*)
+        `)
+        .eq('user_id', profile.id)
+
+      if (error) throw error
+      setUserStations(data || [])
+    } catch (error) {
+      console.error('Error fetching user stations:', error)
+    }
+  }
+
+  const fetchAvailableBlueprints = async () => {
+    if (!profile || !map) return
+
+    try {
+      // Get current map bounds to load only visible stations
+      const bounds = map.getBounds()
+      const { data, error } = await supabase
+        .from('station_blueprints')
+        .select('*')
+        .gte('lat', bounds.getSouth())
+        .lte('lat', bounds.getNorth())
+        .gte('lng', bounds.getWest())
+        .lte('lng', bounds.getEast())
+
+      if (error) throw error
+
+      // Filter out already owned stations
+      const ownedBlueprintIds = userStations.map(s => s.blueprint_id).filter(Boolean)
+      const available = (data || []).filter(bp => !ownedBlueprintIds.includes(bp.id))
+      
+      setAvailableBlueprints(available)
+    } catch (error) {
+      console.error('Error fetching available blueprints:', error)
+    }
+  }
+
+  const handleStationPurchased = (stationId: number) => {
+    // Reload stations and update profile credits
+    fetchUserStations()
+    setBuildMode(false) // Exit build mode after purchase
+    // Trigger profile reload in AuthContext if needed
+    window.location.reload() // Simple reload for now, can be optimized later
   }
 
   return (
@@ -25,7 +161,28 @@ export default function GameLayout({ children }: GameLayoutProps) {
           [51.1657, 10.4515] // Germany center as fallback
         }
         zoom={15} // Close zoom for neighborhood view
+        onMapReady={handleMapReady}
       />
+
+      {/* Station Markers - Always visible */}
+      {map && userStations.map((station) => (
+        <StationMarker
+          key={station.id}
+          station={station}
+          map={map}
+          onStationClick={handleStationClick}
+        />
+      ))}
+
+      {/* Purchasable Station Markers - Only in build mode */}
+      {map && buildMode && availableBlueprints.map((blueprint) => (
+        <PurchasableStationMarker
+          key={`blueprint-${blueprint.id}`}
+          blueprint={blueprint}
+          map={map}
+          onStationClick={handleBlueprintClick}
+        />
+      ))}
       
       {/* UI Overlay */}
       <div className="overlay">
@@ -75,7 +232,7 @@ export default function GameLayout({ children }: GameLayoutProps) {
               <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
               </svg>
-              <div className="text-lg font-bold">€ {profile?.credits?.toLocaleString() || '10,000'}</div>
+              <div className="text-lg font-bold">€ {profile?.credits?.toLocaleString() || '6,000,000'}</div>
             </div>
             
             {/* Laufende Ausgaben */}
@@ -98,7 +255,15 @@ export default function GameLayout({ children }: GameLayoutProps) {
             </svg>
           </button>
           
-          <button className="w-12 h-12 bg-gray-900/90 hover:bg-gray-800/90 rounded-lg flex items-center justify-center transition-colors duration-200 text-white" title="Bauen">
+          <button 
+            onClick={toggleBuildMode}
+            className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors duration-200 text-white ${
+              buildMode 
+                ? 'bg-blue-600/90 hover:bg-blue-700/90' 
+                : 'bg-gray-900/90 hover:bg-gray-800/90'
+            }`}
+            title={buildMode ? "Baumodus beenden" : "Baumodus"}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
@@ -120,6 +285,27 @@ export default function GameLayout({ children }: GameLayoutProps) {
 
         {children}
       </div>
+
+      {/* Station Purchase Modal */}
+      <StationPurchaseModal
+        blueprint={selectedBlueprint}
+        isOpen={showPurchaseModal}
+        onClose={() => {
+          setShowPurchaseModal(false)
+          setSelectedBlueprint(null)
+        }}
+        onStationPurchased={handleStationPurchased}
+      />
+
+      {/* Station Management Modal */}
+      <StationManagement
+        station={selectedStation}
+        isOpen={showStationManagement}
+        onClose={() => {
+          setShowStationManagement(false)
+          setSelectedStation(null)
+        }}
+      />
     </div>
   )
 }
