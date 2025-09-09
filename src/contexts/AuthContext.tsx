@@ -62,7 +62,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single()
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code === 'PGRST116') {
+        // Profile doesn't exist - create one
+        console.log('Profile not found, creating default profile')
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            username: 'Spieler' + userId.slice(-6),
+            home_city_name: '',
+            home_city_lat: 0,
+            home_city_lng: 0,
+            credits: 10000000,
+            running_costs: 0
+          })
+          .select()
+          .single()
+        
+        if (createError) {
+          console.error('Error creating fallback profile:', createError)
+        } else if (newProfile) {
+          setProfile(newProfile)
+        }
+      } else if (error) {
         console.error('Error fetching profile:', error)
       } else if (data) {
         setProfile(data)
@@ -85,8 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
     
-    // Create profile manually after successful signup (when email is confirmed)
+    // Log signup attempt for debugging
+    console.log('Signup result:', { data, error })
+    
+    // If signup was successful but no session (email confirmation required)
+    if (!error && data.user && !data.session) {
+      console.log('User created, waiting for email confirmation')
+    }
+    
+    // Create profile manually if user and session exist (immediate signup)
     if (!error && data.user && data.session) {
+      console.log('Creating profile for immediate signup')
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -94,7 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username: username,
           home_city_name: '', // Empty - user must select
           home_city_lat: 0,
-          home_city_lng: 0
+          home_city_lng: 0,
+          credits: 10000000,
+          running_costs: 0
         })
       
       if (profileError) {

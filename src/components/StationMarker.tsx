@@ -33,7 +33,6 @@ export default function StationMarker({ station, map, onStationClick }: StationM
             width: 32px; 
             height: 32px; 
             background-color: ${iconColor}; 
-            border: 2px solid white; 
             border-radius: 50%; 
             display: flex; 
             align-items: center; 
@@ -43,9 +42,9 @@ export default function StationMarker({ station, map, onStationClick }: StationM
           ">
             <svg width="16" height="16" fill="white" viewBox="0 0 24 24">
               ${type === 'fire_station' ? 
-                '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM8.5 12c-.83 0-1.5-.67-1.5-1.5S7.67 9 8.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm7 0c-.83 0-1.5-.67-1.5-1.5S14.67 9 15.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm-7 4h7v1H8.5v-1z"/>' :
+                '<path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM9.71 19.06c-1.44-.83-1.82-3.71-1.82-3.71s2.41.36 2.41-.83c0-2.74-1.94-3.11-1.94-3.11s.17 1.05.17 1.05c-.25-.74-.9-2.57-.9-2.57s.83 1.92.83 3.61c0 1.69-1.25 2.56-2.75 2.56z"/>' :
                 type === 'ems_station' ?
-                '<path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/>' :
+                '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>' :
                 '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
               }
             </svg>

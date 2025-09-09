@@ -109,29 +109,54 @@ TypeScript types defined in: ✅ `src/types/database.ts`
 - Extended `vehicles` with callsign, condition tracking, pricing, and maintenance fields
 - Realistic pricing update: 6M EUR starting capital, vehicle prices €180k-€1.2M
 
-🚧 **NEXT: Phase 5 - Vehicle Management System**
+✅ **COMPLETED (Phase 5 - Vehicle Management System):**
 
-**5.1 Station Management Interface:**
-- Tab-based interface: Überblick, Fahrzeuge, Personal, Erweiterungen
-- Focus on "Fahrzeuge" tab for vehicle management system
-- Display available vehicle slots (4 slots at level 1)
-- Empty slots show "+" button for vehicle purchase
+**5.1 Vehicle Purchase System Implementation:**
+- Complete categorized vehicle browser with German fire/EMS vehicle types:
+  - **Feuerwehr:** LF (8/6, 10, 16/12, 20), TLF (3000, 4000), Sonstige (HLF 20, DLK 23-12, DLA(K) 23-12, ELW 1/2, RW, MTF, GW-L)
+  - **Rettungsdienst:** RTW (Standard, Intensiv), NAW, KTW, NEF categories
+- Vehicle configuration options with price modifiers and capability enhancements
+- Custom callsign entry (Rufname) and vehicle naming system
+- Real-time price calculation with configuration add-ons
 
-**5.2 Vehicle Purchase System:**
-- Categorized vehicle browser by type:
-  - **Feuerwehr:** LF (Löschfahrzeuge), TLF (Tanklöschfahrzeuge), Sonstige
-  - **Rettungsdienst:** RTW, NAW, KTW categories
-  - **Polizei:** Landespolizei, Bundespolizei, Bereitschaftspolizei
-- Vehicle configuration options (tank size, additional equipment) affect price
-- Custom callsign entry (Rufname) as primary vehicle identifier
-- Custom vehicle type name entry for individual naming
+**5.2 Supabase Storage Integration:**
+- Complete vehicle image management via Supabase Storage buckets
+- Automatic image loading with clean abbreviation naming (lf_20.jpg, tlf_4000.png, etc.)
+- Fallback image system with multiple format support (.png, .jpg, .webp)
+- Proper bucket policies for public access and authenticated uploads
 
-**5.3 Vehicle Management Features:**
-- Purchased vehicles appear on station slots with visual representation
-- Vehicle condition system (wear over time, repair costs)
-- Vehicle selling with depreciation based on usage/condition  
-- Unique vehicle tracking (multiple LF20 possible with different callsigns)
-- Station assignment binding (vehicles belong to specific stations)
+**5.3 Database Extensions & Vehicle Fleet:**
+- Added 7 additional German emergency vehicles to complete realistic fleet
+- Extended vehicle categorization system with subcategories for proper UI grouping
+- Safe migration scripts (008_add_additional_vehicles.sql) with conditional inserts
+- Complete vehicle abbreviation mapping for image loading system
+- Configuration options for equipment upgrades and customization
+
+**5.4 Technical Achievements:**
+- Resolved Supabase URL environment variable issues
+- Implemented robust image loading with intelligent fallback logic
+- Created comprehensive vehicle abbreviation system covering all German emergency vehicle types
+- Fixed vehicle filtering and categorization for proper purchase menu display
+
+🚧 **NEXT: Phase 6 - Mission Generation System**
+
+**6.1 Automatic Mission Generation:**
+- OpenStreetMap/Overpass API integration for realistic incident locations
+- Mission type blueprints with German emergency scenarios
+- Real-time mission spawning based on city size and time of day
+- Mission difficulty scaling with available fleet capabilities
+
+**6.2 Vehicle Dispatch & Response:**
+- Real-time vehicle assignment to active missions
+- Route calculation using OSRM or Mapbox Directions API
+- Vehicle movement animations along actual road networks
+- Response time calculations affecting mission outcomes
+
+**6.3 Mission Management Interface:**
+- Active missions panel with priority indicators
+- Vehicle status tracking during missions
+- Mission completion rewards and XP system
+- Mission history and statistics tracking
 
 ## Key Implementation Notes
 
@@ -147,9 +172,12 @@ TypeScript types defined in: ✅ `src/types/database.ts`
 ## Development Commands
 
 - `npm run dev` - Start development server with Turbopack (http://localhost:3000)
-- `npm run build` - Build production application with Turbopack
+- `npm run build` - Build production application with Turbopack  
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint for code quality checks
+- `supabase start` - Start local Supabase instance (if using local development)
+- `supabase db reset` - Reset local database with migrations and seed data
+- `supabase gen types typescript --local` - Generate TypeScript types from database schema
 - Development server runs on http://localhost:3000
 
 ## Project Structure
@@ -164,10 +192,17 @@ TypeScript types defined in: ✅ `src/types/database.ts`
 
 ## Git Workflow
 
-- **`main`** branch: Stable releases and major milestones
-- **`development`** branch: Active development (current working branch)
-- All UI optimizations and Phase 1 completion now synced to main
-- Ready for Phase 2 backend integration on development branch
+- **`main`** branch: Stable releases and major milestones (DEFAULT BRANCH)
+- **`development`** branch: Active development and testing (current working branch)
+- Completed phases are merged from development to main with comprehensive commits
+- Phase 4 (Station Building System) successfully merged to main
+- Ready for Phase 5 (Vehicle Management System) on development branch
+
+**Branch Management:**
+- All development work happens on `development` branch
+- Features are committed with detailed descriptions and emoji categorization
+- Merge to `main` only when phase is complete and tested
+- Use `--no-ff` merges to maintain clear project history
 
 ## Core Architecture Patterns
 
@@ -175,32 +210,54 @@ TypeScript types defined in: ✅ `src/types/database.ts`
 - Supabase Auth integration via AuthContext (`src/contexts/AuthContext.tsx`)
 - Profile data automatically synced from auth.users to profiles table
 - City selection during onboarding determines map center and gameplay area
+- Protected routes via AuthContext.user state checking
 
 **Map Integration:**  
 - Leaflet.js with dynamic imports to prevent SSR issues (`src/components/LeafletMap.tsx`)
 - CartoDB Dark Matter tiles for consistent dark theme
 - Map component accepts center coordinates from user's home city
 - All interactive elements rendered as overlays above the map
+- Build mode system with purchasable station markers and cleanup on mode exit
 
 **State Management:**
 - React Context for authentication state
 - Supabase Realtime subscriptions planned for live game updates
 - Database-driven state with TypeScript interfaces in `src/types/database.ts`
+- Local state management via React hooks for UI interactions
 
 **UI Architecture:**
 - GameLayout component provides main game interface structure
 - Overlay-based UI positioned absolutely over fullscreen map
 - German-localized interface with icon-based controls
 - Color-coded information system (yellow for credits/missions, red for costs)
+- Modal-based interactions for station management and purchases
+
+**Database Integration:**
+- Row Level Security (RLS) policies enforce user data isolation
+- TypeScript types auto-generated from Supabase schema
+- Migrations handle schema evolution with safe conditional updates
+- JSONB fields for flexible data storage (capabilities, extensions, configurations)
 
 ## Development Workflow
 
+**Code Standards:**
 - Use TypeScript strictly - all database types defined in `src/types/database.ts`
 - Follow existing component patterns in `src/components/`
 - All map-related components must handle SSR with dynamic imports
 - Maintain dark-mode-first design with TailwindCSS
+- Follow German localization for UI text throughout
+
+**Testing & Validation:**
 - Test authentication flows with Supabase Auth
-- Follow German localization for UI text
+- Always run `npm run lint` before committing
+- Test map interactions in build/normal modes
+- Verify database operations through Supabase dashboard
+
+**Component Development:**
+- Use dynamic imports for Leaflet components to avoid SSR issues
+- Implement proper cleanup for map markers and event listeners  
+- Follow modal-based interaction patterns for complex UIs
+- Use icon-based navigation with German tooltips
 
 ## Recent Changes (Latest Commit: feat: Complete map-based station building system)
 
