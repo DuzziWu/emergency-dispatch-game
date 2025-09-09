@@ -7,6 +7,7 @@ export interface Profile {
   home_city_lat: number
   home_city_lng: number
   credits: number
+  running_costs: number
   hq_level: number
   created_at: string
 }

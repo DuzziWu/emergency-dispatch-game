@@ -17,7 +17,7 @@ CREATE TABLE profiles (
     home_city_name TEXT NOT NULL,
     home_city_lat NUMERIC(10, 7) NOT NULL,
     home_city_lng NUMERIC(10, 7) NOT NULL,
-    credits BIGINT DEFAULT 10000 NOT NULL,
+    credits BIGINT DEFAULT 6000000 NOT NULL, -- Start with 6 million EUR
     hq_level INTEGER DEFAULT 1 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

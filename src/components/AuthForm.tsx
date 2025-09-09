@@ -53,10 +53,14 @@ export default function AuthForm({ onSuccess }: AuthFormProps) {
           setError(null)
           // Check if we need to confirm email first (if no session was created)
           if (!result.error) {
-            alert('Registrierung erfolgreich! Falls keine automatische Anmeldung erfolgte, prüfe deine E-Mail zur Bestätigung.')
+            // Show success message and explain next steps
+            alert('Registrierung erfolgreich! \n\nBitte prüfe deine E-Mail und klicke auf den Bestätigungslink. Danach kannst du dich anmelden.\n\nFalls du keine E-Mail erhältst, prüfe auch den Spam-Ordner.')
           }
         }
-        onSuccess?.()
+        // Only call onSuccess if user has a session (logged in)
+        if (isLogin || (result && !result.error && signIn)) {
+          onSuccess?.()
+        }
       }
     } catch (err) {
       setError('Ein unerwarteter Fehler ist aufgetreten')

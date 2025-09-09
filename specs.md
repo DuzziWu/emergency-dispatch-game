@@ -260,24 +260,132 @@ f. Erstelle einen neuen Eintrag in der `missions`-Tabelle mit `status: 'new'`, d
    - Benutzer-Info mit Stadt und Logout-Option ✅
    - Deutsche Lokalisierung aller Auth-Komponenten ✅
 
-### 🔄 **NÄCHSTE SCHRITTE (Phase 4: Station Building & Vehicle Management)**
+### ✅ **ABGESCHLOSSEN (Phase 4 & 5: Station Building & Vehicle Management)**
 
-1. **Station Building System:**
+**Phase 4: Station Building System (✅ COMPLETED)**
+- Map-based station building with build mode toggle and viewport-based loading ✅
+- Pulsing purchase markers (€ icons) with proper cleanup when exiting build mode ✅
+- Station purchase modal with realistic German emergency service pricing (€2.8M-€4.2M) ✅
+- Fixed Leaflet.js marker cleanup issues and map centering problems ✅
+- Safe database migration script with conditional checks for schema extensions ✅
 
-   - Erste Blueprint-Daten für deutsche Wachen einpflegen
-   - Station-Platzierung auf der Karte
-   - Wachen-Management Interface
+**Phase 5: Vehicle Management System (✅ COMPLETED)**
+- Complete categorized vehicle browser with German fire/EMS vehicle types ✅
+- Feuerwehr: LF (8/6, 10, 16/12, 20), TLF (3000, 4000), Sonstige (HLF 20, DLK 23-12, DLA(K) 23-12, ELW 1/2, RW, MTF, GW-L) ✅
+- Rettungsdienst: RTW (Standard, Intensiv), NAW, KTW, NEF categories ✅
+- Vehicle configuration options with price modifiers and capability enhancements ✅
+- Custom callsign entry (Rufname) and vehicle naming system ✅
+- Real-time price calculation with configuration add-ons ✅
+- Complete Supabase Storage integration for vehicle images ✅
+- Automatic image loading with clean abbreviation naming (lf_20.jpg, tlf_4000.png, etc.) ✅
+- Fallback image system with multiple format support (.png, .jpg, .webp) ✅
+- Added 7 additional German emergency vehicles to complete realistic fleet ✅
+- Safe migration scripts (008_add_additional_vehicles.sql) with conditional inserts ✅
+- Resolved Supabase URL environment variable issues and image loading problems ✅
 
-2. **Vehicle Management:**
+### 🔄 **NÄCHSTE SCHRITTE (Phase 6: Mission Generation System)**
 
-   - Vehicle Purchase System
-   - Fleet Management Interface
-   - Personnel Assignment
+**6.1 Automatic Mission Generation:**
+- OpenStreetMap/Overpass API integration for realistic incident locations
+- Mission type blueprints with German emergency scenarios
+- Real-time mission spawning based on city size and time of day
+- Mission difficulty scaling with available fleet capabilities
 
-3. **Mission System Grundlagen:**
-   - Erste Mission-Types laden
-   - Mission Generation Proof-of-Concept
-   - Basic Mission Display
+**6.2 Vehicle Dispatch & Response:**
+- Real-time vehicle assignment to active missions
+- Route calculation using OSRM or Mapbox Directions API
+- Vehicle movement animations along actual road networks
+- Response time calculations affecting mission outcomes
+
+**4.1 Station Purchase & Management System:**
+
+1. **Station Building Interface:**
+   - Bauen-Button öffnet Station Browser mit verfügbaren Blueprints
+   - Anzeige: Name, Typ (Feuerwehr/Rettung), Kosten, Standort-Vorschau auf Karte
+   - Kaufbestätigung mit Credit-Abzug und Datenbank-Eintrag in `stations` Tabelle
+   - Station-Icon erscheint sofort auf Karte nach erfolgreichem Kauf
+
+2. **Station Management Interface:**
+   - Klick auf eigene Station öffnet Management-Modal/Sidebar
+   - Tab-Navigation: **Überblick**, **Fahrzeuge**, **Personal**, **Erweiterungen**
+   - **Überblick-Tab:** Station Level, verfügbare Slots, laufende Kosten
+   - **Fahrzeuge-Tab:** Kern-Feature für Vehicle Management (siehe 4.2)
+   - **Personal/Erweiterungen-Tabs:** Placeholder für spätere Implementierung
+
+**4.2 Vehicle Management System:**
+
+1. **Vehicle Slot Display:**
+   - Level 1 Station: 4 verfügbare Fahrzeugstellplätze
+   - Belegte Slots: Fahrzeug-Icon + Callsign + Status-Anzeige
+   - Leere Slots: "+" Button zum Fahrzeugkauf
+   - Fahrzeug-Kondition visuell dargestellt (grün/gelb/rot)
+
+2. **Vehicle Purchase Browser:**
+   - **Hauptkategorien:** Feuerwehr, Rettungsdienst, Polizei
+   - **Feuerwehr Unterkategorien:**
+     - LF (Löschfahrzeuge): LF 10, LF 16, LF 20, etc.
+     - TLF (Tanklöschfahrzeuge): TLF 16/25, TLF 20/40, etc.
+     - Sonstige: DLK, RW, GW-L, etc.
+   - **Rettungsdienst Unterkategorien:**
+     - RTW (Rettungswagen), NAW (Notarztwagen), KTW (Krankentransport)
+   - **Polizei Unterkategorien:**
+     - Landespolizei, Bundespolizei, Bereitschaftspolizei
+
+3. **Vehicle Configuration System:**
+   - **Basis-Fahrzeug:** Standard-Konfiguration mit Grundpreis
+   - **Konfigurationsoptionen:**
+     - Größerer Wassertank (+€ 5.000, bessere Löschleistung)
+     - Zusätzliche Atemschutzgeräte (+€ 3.000, mehr Personal)
+     - Erweiterte medizinische Ausrüstung (+€ 8.000, bessere EMS)
+     - Spezial-Rettungsausrüstung (+€ 12.000, technische Hilfe)
+   - **Endpreis-Berechnung:** Basis + Konfigurationen = Gesamtkosten
+
+4. **Vehicle Naming & Identification:**
+   - **Rufname (Callsign):** Primärer Identifier (z.B. "Florian München 10/1")
+   - **Fahrzeugtyp-Name:** Individueller Name (z.B. "LF 20 KatS")
+   - **Eindeutigkeit:** Mehrere LF20 möglich durch unterschiedliche Callsigns
+   - **Display-Priorität:** Rufname wird überall als Haupt-Identifier angezeigt
+
+**4.3 Vehicle Lifecycle Management:**
+
+1. **Condition System:**
+   - **Zustandswerte:** 100% (Neu) bis 0% (Totalschaden)
+   - **Verschleiß-Faktoren:** Einsatzzeit, Fahrtkilometer, Alter
+   - **Condition-Auswirkungen:**
+     - 80-100%: Optimale Leistung (grün)
+     - 50-79%: Reduzierte Effizienz (gelb)  
+     - 20-49%: Häufige Reparaturen nötig (orange)
+     - 0-19%: Einsatzbereitschaft gefährdet (rot)
+
+2. **Maintenance & Repair System:**
+   - **Präventive Wartung:** Regelmäßige Kosten für Condition-Erhaltung
+   - **Reparaturen:** Auf-Demand Reparaturen bei Schäden
+   - **Reparatur-Kosten:** Abhängig von Fahrzeugwert und Schadensgrad
+   - **Downtime:** Fahrzeuge während Reparatur nicht verfügbar
+
+3. **Vehicle Sales & Depreciation:**
+   - **Verkaufswert-Berechnung:** Originalpreis × Condition% × Alter-Faktor
+   - **Depreciation-Kurve:** Linear abnehmend über Zeit und Nutzung  
+   - **Verkaufs-Interface:** Bestätigung + sofortiger Credit-Gutschrift
+   - **Slot-Freigabe:** Stellplatz wird sofort wieder verfügbar
+
+**4.4 Database Schema Erweiterungen:**
+
+1. **Vehicle Table Additions:**
+   ```sql
+   ALTER TABLE vehicles ADD COLUMN:
+   - callsign VARCHAR(50) NOT NULL -- Rufname (Primary Display)
+   - custom_name VARCHAR(100) -- Individueller Fahrzeugname  
+   - condition_percent INTEGER DEFAULT 100 -- Zustand 0-100%
+   - configuration JSONB DEFAULT '{}' -- Kaufkonfiguration
+   - purchase_price INTEGER NOT NULL -- Original-Kaufpreis
+   - kilometers_driven INTEGER DEFAULT 0 -- Laufleistung
+   - last_maintenance TIMESTAMP -- Letzte Wartung
+   ```
+
+2. **Station Slots Tracking:**
+   - vehicle_slots in stations table bereits vorhanden
+   - Slot-Belegung über vehicles.station_id foreign key relationship
 
 ### 📋 **TODO (Phase 3+: Spielmechanik)**
 

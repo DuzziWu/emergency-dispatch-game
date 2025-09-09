@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Station, StationBlueprint, Vehicle } from '@/types/database'
 import { supabase } from '@/lib/supabase'
+import VehiclePurchaseModal from './VehiclePurchaseModal'
 
 interface StationWithBlueprint extends Station {
   blueprint: StationBlueprint
@@ -20,6 +21,7 @@ export default function StationManagement({ station, isOpen, onClose }: StationM
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(false)
+  const [showVehiclePurchase, setShowVehiclePurchase] = useState(false)
 
   useEffect(() => {
     if (station && isOpen) {
@@ -188,7 +190,10 @@ export default function StationManagement({ station, isOpen, onClose }: StationM
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center">
+                      <div 
+                        className="text-center"
+                        onClick={() => setShowVehiclePurchase(true)}
+                      >
                         <svg className="w-8 h-8 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
@@ -220,6 +225,19 @@ export default function StationManagement({ station, isOpen, onClose }: StationM
           )}
         </div>
       </div>
+
+      {/* Vehicle Purchase Modal */}
+      {station && (
+        <VehiclePurchaseModal
+          isOpen={showVehiclePurchase}
+          onClose={() => setShowVehiclePurchase(false)}
+          station={station}
+          onPurchaseComplete={() => {
+            fetchStationVehicles()
+            setShowVehiclePurchase(false)
+          }}
+        />
+      )}
     </div>
   )
 }

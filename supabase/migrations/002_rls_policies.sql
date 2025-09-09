@@ -75,12 +75,13 @@ CREATE POLICY "Mission types are viewable by all users" ON mission_types
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, username, home_city_name, home_city_lat, home_city_lng)
+    INSERT INTO public.profiles (id, username, home_city_name, home_city_lat, home_city_lng, credits)
     VALUES (NEW.id, 
             COALESCE(NEW.raw_user_meta_data->>'username', 'User' || substr(NEW.id::text, 1, 8)),
             'Berlin',  -- Default city
             52.5200,   -- Berlin latitude
-            13.4050    -- Berlin longitude
+            13.4050,   -- Berlin longitude
+            10000000   -- Start with 10 million EUR
     );
     RETURN NEW;
 END;

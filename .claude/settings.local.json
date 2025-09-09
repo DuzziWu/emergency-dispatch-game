@@ -1,0 +1,11 @@
+{
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "taskmaster-ai"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)"
+    ]
+  }
+}
