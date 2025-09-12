@@ -313,34 +313,58 @@ export default function GameLayout({ children }: GameLayoutProps) {
         return
       }
 
-      // Update mission status to 'on_scene' if this is the first vehicle arriving
+      // Update mission status to 'on_scene' only when ALL vehicles have arrived at mission
       if (journeyType === 'to_mission') {
         const mission = activeMissions.find(m => m.assigned_vehicle_ids?.includes(vehicleId))
         console.log('🎯 Vehicle arrived at mission. Found mission:', mission?.id, 'current status:', mission?.status)
         
-        if (mission && mission.status !== 'on_scene') {
-          const { error: missionError } = await supabase
-            .from('missions')
-            .update({ status: 'on_scene' })
-            .eq('id', mission.id)
+        if (mission) {
+          // Check how many vehicles are now on scene (status_4)
+          const { data: vehiclesOnScene, error: vehicleCheckError } = await supabase
+            .from('vehicles')
+            .select('id, status')
+            .in('id', mission.assigned_vehicle_ids)
+            .eq('status', 'status_4')
             .eq('user_id', profile.id)
 
-          if (missionError) {
-            console.error('Error updating mission status to on_scene:', missionError)
+          if (vehicleCheckError) {
+            console.error('Error checking vehicles on scene:', vehicleCheckError)
           } else {
-            // Update local state
-            setActiveMissions(prev =>
-              prev.map(m => 
-                m.id === mission.id ? { ...m, status: 'on_scene' } : m
-              )
-            )
+            const totalAssignedVehicles = mission.assigned_vehicle_ids.length
+            const vehiclesArrivedCount = vehiclesOnScene?.length || 0
             
-            // Update selected mission if it's the current one
-            if (selectedMission?.id === mission.id) {
-              setSelectedMission(prev => prev ? { ...prev, status: 'on_scene' } : null)
+            console.log(`📊 Mission ${mission.id} arrival status: ${vehiclesArrivedCount}/${totalAssignedVehicles} vehicles on scene`)
+            
+            // Only update mission to 'scouted' (Erkundung) when ALL assigned vehicles have arrived
+            if (vehiclesArrivedCount === totalAssignedVehicles && mission.status !== 'scouted' && mission.status !== 'on_scene') {
+              console.log(`🎯 ALL vehicles arrived at mission ${mission.id}, updating status to scouted (Erkundung)`)
+              
+              const { error: missionError } = await supabase
+                .from('missions')
+                .update({ status: 'scouted' })
+                .eq('id', mission.id)
+                .eq('user_id', profile.id)
+
+              if (missionError) {
+                console.error('Error updating mission status to scouted:', missionError)
+              } else {
+                // Update local state
+                setActiveMissions(prev =>
+                  prev.map(m => 
+                    m.id === mission.id ? { ...m, status: 'scouted' } : m
+                  )
+                )
+                
+                // Update selected mission if it's the current one
+                if (selectedMission?.id === mission.id) {
+                  setSelectedMission(prev => prev ? { ...prev, status: 'scouted' } : null)
+                }
+                
+                console.log(`✅ Mission ${mission.id} status updated to scouted (Erkundung) - all ${totalAssignedVehicles} vehicles arrived`)
+              }
+            } else {
+              console.log(`⏳ Mission ${mission.id} still waiting: ${vehiclesArrivedCount}/${totalAssignedVehicles} vehicles arrived`)
             }
-            
-            console.log(`Mission ${mission.id} status updated to on_scene`)
           }
         }
         
@@ -961,7 +985,7 @@ export default function GameLayout({ children }: GameLayoutProps) {
         
         for (let index = 0; index < vehicleData.length; index++) {
           const vehicle = vehicleData[index]
-          const delay = index * 3000 // 3 seconds delay between each vehicle
+          const delay = index * 5000 // 5 seconds delay between each vehicle
           
           // Use setTimeout to stagger the animations
           setTimeout(async () => {

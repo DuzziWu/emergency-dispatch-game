@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import L from 'leaflet'
+import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '@/lib/supabase'
-import type { StationBlueprint, Station, Mission } from '@/types/database'
+import type { StationBlueprint, Station, Mission, Vehicle, VehicleType } from '@/types/database'
 import StationManagement from './StationManagement'
+import { createMissionIcon, createStationIcon } from '@/lib/map-icons'
+import { createVehicleAnimationManager, type VehicleAnimationManager } from '@/lib/vehicle-animation'
 import { Flame, Heart } from 'lucide-react'
-import { renderToStaticMarkup } from 'react-dom/server'
 
 // Fix for default markers in Leaflet
 if (typeof window !== 'undefined') {
@@ -19,97 +20,16 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// Custom icons for missions
-const createMissionIcon = (status: string) => {
-  const size: [number, number] = [24, 24]
-  let color: string
-  let shouldBlink = false
-  
-  switch (status) {
-    case 'new':
-      color = '#fbbf24' // gold
-      shouldBlink = true
-      break
-    case 'dispatched':
-      color = '#fbbf24' // gold
-      shouldBlink = false
-      break
-    case 'en_route':
-      color = '#3b82f6' // blue
-      shouldBlink = false
-      break
-    case 'on_scene':
-      color = '#10b981' // green
-      shouldBlink = false
-      break
-    default:
-      color = '#6b7280' // gray
-      shouldBlink = false
-  }
-  
-  const blinkingClass = shouldBlink ? 'mission-marker-blink' : ''
-  
-  return L.divIcon({
-    className: `custom-mission-icon ${blinkingClass}`,
-    html: `
-      <div style="
-        width: 24px; 
-        height: 24px; 
-        background: ${color}; 
-        border: 2px solid #ffffff; 
-        border-radius: 50%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.6);
-        font-weight: bold;
-        font-size: 12px;
-        color: white;
-      ">
-        !
-      </div>
-    `,
-    iconSize: size,
-    iconAnchor: [12, 12],
-  })
-}
 
-// Custom icons for stations
-const createStationIcon = (type: 'fire_station' | 'ems_station', owned: boolean = false) => {
-  const size: [number, number] = [32, 32]
-  const color = type === 'fire_station' ? '#ef4444' : '#f97316' // red for fire, orange for EMS
-  const opacity = owned ? '1' : '0.7'
-  const borderColor = owned ? '#ffffff' : '#cccccc'
-  
-  const iconComponent = type === 'fire_station' 
-    ? <Flame className="w-4 h-4" style={{ color: 'white' }} />
-    : <Heart className="w-4 h-4" style={{ color: 'white' }} />
-  
-  const iconSvg = renderToStaticMarkup(iconComponent)
-  
-  return L.divIcon({
-    className: 'custom-station-icon',
-    html: `
-      <div style="
-        width: 32px; 
-        height: 32px; 
-        background: ${color}; 
-        border: 2px solid ${borderColor}; 
-        border-radius: 50%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        opacity: ${opacity};
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-      ">
-        ${iconSvg}
-      </div>
-    `,
-    iconSize: size,
-    iconAnchor: [16, 16],
-  })
+
+
+export interface VehicleAnimationControls {
+  addVehicleAnimation: (
+    vehicle: Vehicle & { vehicle_types: VehicleType },
+    startPos: [number, number],
+    endPos: [number, number],
+    journeyType: 'to_mission' | 'to_station'
+  ) => Promise<void>
 }
 
 interface LeafletMapProps {
@@ -120,6 +40,10 @@ interface LeafletMapProps {
   userId?: string
   missions?: Mission[]
   onMissionClick?: (mission: Mission) => void
+  movingVehicles?: (Vehicle & { vehicle_types: VehicleType })[]
+  onVehicleClick?: (vehicle: Vehicle & { vehicle_types: VehicleType }) => void
+  onMapReady?: (controls: VehicleAnimationControls) => void
+  onVehicleArrival?: (vehicleId: number, journeyType: 'to_mission' | 'to_station') => void
 }
 
 export default function LeafletMap({ 
@@ -129,18 +53,36 @@ export default function LeafletMap({
   buildMode = false,
   userId,
   missions = [],
-  onMissionClick
+  onMissionClick,
+  movingVehicles = [],
+  onVehicleClick,
+  onMapReady,
+  onVehicleArrival
 }: LeafletMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const blueprintMarkersRef = useRef<L.LayerGroup | null>(null)
   const ownedStationMarkersRef = useRef<L.LayerGroup | null>(null)
   const missionMarkersRef = useRef<L.LayerGroup | null>(null)
+  const vehicleMarkersRef = useRef<L.LayerGroup | null>(null)
+  const vehicleAnimationManagerRef = useRef<VehicleAnimationManager | null>(null)
   
   const [stationBlueprints, setStationBlueprints] = useState<StationBlueprint[]>([])
   const [ownedStations, setOwnedStations] = useState<Station[]>([])
   const [selectedStation, setSelectedStation] = useState<StationBlueprint | null>(null)
   const [selectedOwnedStation, setSelectedOwnedStation] = useState<{ station: Station, blueprint: StationBlueprint } | null>(null)
+
+  // Function to add vehicle to animation
+  const addVehicleAnimation = async (
+    vehicle: Vehicle & { vehicle_types: VehicleType },
+    startPos: [number, number],
+    endPos: [number, number],
+    journeyType: 'to_mission' | 'to_station'
+  ) => {
+    if (vehicleAnimationManagerRef.current) {
+      await vehicleAnimationManagerRef.current.addVehicle(vehicle, startPos, endPos, journeyType)
+    }
+  }
 
   // Function to load station blueprints within viewport
   const loadStationsInViewport = async (bounds: L.LatLngBounds) => {
@@ -225,6 +167,21 @@ export default function LeafletMap({
     blueprintMarkersRef.current = L.layerGroup().addTo(map)
     ownedStationMarkersRef.current = L.layerGroup().addTo(map)
     missionMarkersRef.current = L.layerGroup().addTo(map)
+    vehicleMarkersRef.current = L.layerGroup().addTo(map)
+    
+    // Initialize vehicle animation manager
+    vehicleAnimationManagerRef.current = createVehicleAnimationManager(
+      map,
+      vehicleMarkersRef.current,
+      onVehicleClick,
+      (vehicleId, journeyType) => {
+        console.log(`Vehicle ${vehicleId} completed ${journeyType} journey`)
+        // Handle vehicle arrival callback
+        if (onVehicleArrival) {
+          onVehicleArrival(vehicleId, journeyType)
+        }
+      }
+    )
 
     // Load stations on initial load and map moves
     const handleMapMove = () => {
@@ -236,6 +193,11 @@ export default function LeafletMap({
     handleMapMove() // Initial load
 
     mapInstanceRef.current = map
+    
+    // Notify parent that map is ready
+    if (onMapReady) {
+      onMapReady({ addVehicleAnimation })
+    }
 
     // Add blinking animation CSS
     if (!document.querySelector('#mission-marker-styles')) {
@@ -256,6 +218,10 @@ export default function LeafletMap({
 
     // Cleanup function
     return () => {
+      if (vehicleAnimationManagerRef.current) {
+        vehicleAnimationManagerRef.current.cleanup()
+        vehicleAnimationManagerRef.current = null
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git restore:*)",
+      "Bash(git add:*)"
+    ]
+  },
+  "disabledMcpjsonServers": [
+    "taskmaster-ai"
+  ]
+}
