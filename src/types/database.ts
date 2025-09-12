@@ -46,7 +46,7 @@ export interface VehicleType {
   description?: string
   daily_cost?: number
   category?: string
-  configuration_options?: Record<string, any>
+  configuration_options?: Record<string, unknown>
 }
 
 export interface Vehicle {
@@ -59,7 +59,7 @@ export interface Vehicle {
   callsign: string
   custom_name?: string
   condition_percent: number
-  configuration: Record<string, any>
+  configuration: Record<string, unknown>
   purchase_price: number
   kilometers_driven: number
   last_maintenance?: string
@@ -68,14 +68,14 @@ export interface Vehicle {
   current_lat?: number
   current_lng?: number
   movement_progress?: number
-  route_cache?: Record<string, any>
+  route_cache?: Record<string, unknown>
   movement_state?: string
   target_lat?: number
   target_lng?: number
   position_updated_at?: string
   return_scheduled_at?: string
   status: string // vehicle_status enum
-  route_coordinates?: Record<string, any>
+  route_coordinates?: Record<string, unknown>
   route_start_time?: string
   route_duration?: number
   current_route_progress?: number
@@ -84,26 +84,52 @@ export interface Vehicle {
 export interface MissionType {
   id: number
   title: string
+  description: string
+  category: 'fire' | 'ems' | 'police'
+  location_types: string[]
   min_station_requirements: Record<string, number>
-  possible_locations: 'road' | 'residential' | 'commercial'
+  required_capabilities: Record<string, number>
   possible_outcomes: Array<{
     type: string
     chance: number
     payout: number
-    required_vehicles?: number[]
+    description: string
+    required_vehicles: Array<{
+      type: string
+      count: number
+    }>
   }>
+  min_frequency_minutes: number
+  max_frequency_minutes: number
+  difficulty_level: number
+  base_payout: number
+  min_payout: number
+  max_payout: number
+  is_active: boolean
+  created_at: string
+  caller_texts: string[]
+  severity_requirements: Record<string, unknown>
 }
 
 export interface Mission {
   id: number
   user_id: string
   mission_type_id: number
+  mission_title: string
   lat: number
   lng: number
-  status: 'new' | 'dispatched' | 'scouted' | 'completed' | 'failed'
+  address: string
+  caller_name?: string
+  business_name?: string
+  status: 'new' | 'dispatched' | 'en_route' | 'on_scene' | 'completed' | 'failed'
   caller_text: string
   payout: number
-  required_vehicles?: Record<string, number>
+  outcome_type?: string
+  required_vehicles: Array<{
+    type: string
+    count: number
+  }>
   assigned_vehicle_ids: number[]
   created_at: string
+  completed_at?: string
 }

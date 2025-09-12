@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import type { Mission } from '@/types/database'
 
 // Dynamically import leaflet to avoid SSR issues
 const LeafletMap = dynamic(() => import('./LeafletMap'), {
@@ -17,6 +18,8 @@ interface MapProps {
   className?: string
   buildMode?: boolean
   userId?: string
+  missions?: Mission[]
+  onMissionClick?: (mission: Mission) => void
 }
 
 export default function Map({ 
@@ -24,7 +27,9 @@ export default function Map({
   zoom = 6,
   className = "fullscreen",
   buildMode = false,
-  userId
+  userId,
+  missions = [],
+  onMissionClick
 }: MapProps) {
-  return <LeafletMap center={center} zoom={zoom} className={className} buildMode={buildMode} userId={userId} />
+  return <LeafletMap center={center} zoom={zoom} className={className} buildMode={buildMode} userId={userId} missions={missions} onMissionClick={onMissionClick} />
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '@/lib/supabase'
-import type { StationBlueprint, Station } from '@/types/database'
+import type { StationBlueprint, Station, Mission } from '@/types/database'
 import StationManagement from './StationManagement'
 import { Flame, Heart } from 'lucide-react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -16,6 +16,62 @@ if (typeof window !== 'undefined') {
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  })
+}
+
+// Custom icons for missions
+const createMissionIcon = (status: string) => {
+  const size: [number, number] = [24, 24]
+  let color: string
+  let shouldBlink = false
+  
+  switch (status) {
+    case 'new':
+      color = '#fbbf24' // gold
+      shouldBlink = true
+      break
+    case 'dispatched':
+      color = '#fbbf24' // gold
+      shouldBlink = false
+      break
+    case 'en_route':
+      color = '#3b82f6' // blue
+      shouldBlink = false
+      break
+    case 'on_scene':
+      color = '#10b981' // green
+      shouldBlink = false
+      break
+    default:
+      color = '#6b7280' // gray
+      shouldBlink = false
+  }
+  
+  const blinkingClass = shouldBlink ? 'mission-marker-blink' : ''
+  
+  return L.divIcon({
+    className: `custom-mission-icon ${blinkingClass}`,
+    html: `
+      <div style="
+        width: 24px; 
+        height: 24px; 
+        background: ${color}; 
+        border: 2px solid #ffffff; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        font-weight: bold;
+        font-size: 12px;
+        color: white;
+      ">
+        !
+      </div>
+    `,
+    iconSize: size,
+    iconAnchor: [12, 12],
   })
 }
 
@@ -62,6 +118,8 @@ interface LeafletMapProps {
   className?: string
   buildMode?: boolean
   userId?: string
+  missions?: Mission[]
+  onMissionClick?: (mission: Mission) => void
 }
 
 export default function LeafletMap({ 
@@ -69,12 +127,15 @@ export default function LeafletMap({
   zoom = 6,
   className = "fullscreen",
   buildMode = false,
-  userId
+  userId,
+  missions = [],
+  onMissionClick
 }: LeafletMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const blueprintMarkersRef = useRef<L.LayerGroup | null>(null)
   const ownedStationMarkersRef = useRef<L.LayerGroup | null>(null)
+  const missionMarkersRef = useRef<L.LayerGroup | null>(null)
   
   const [stationBlueprints, setStationBlueprints] = useState<StationBlueprint[]>([])
   const [ownedStations, setOwnedStations] = useState<Station[]>([])
@@ -163,6 +224,7 @@ export default function LeafletMap({
     // Initialize marker layers
     blueprintMarkersRef.current = L.layerGroup().addTo(map)
     ownedStationMarkersRef.current = L.layerGroup().addTo(map)
+    missionMarkersRef.current = L.layerGroup().addTo(map)
 
     // Load stations on initial load and map moves
     const handleMapMove = () => {
@@ -174,6 +236,23 @@ export default function LeafletMap({
     handleMapMove() // Initial load
 
     mapInstanceRef.current = map
+
+    // Add blinking animation CSS
+    if (!document.querySelector('#mission-marker-styles')) {
+      const style = document.createElement('style')
+      style.id = 'mission-marker-styles'
+      style.textContent = `
+        @keyframes mission-blink {
+          0% { opacity: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+          50% { opacity: 0.4; box-shadow: 0 2px 16px rgba(251, 191, 36, 0.8); }
+          100% { opacity: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+        }
+        .mission-marker-blink {
+          animation: mission-blink 2s ease-in-out infinite;
+        }
+      `
+      document.head.appendChild(style)
+    }
 
     // Cleanup function
     return () => {
@@ -247,6 +326,29 @@ export default function LeafletMap({
       ownedStationMarkersRef.current?.addLayer(marker)
     })
   }, [ownedStations, stationBlueprints])
+
+  // Update mission markers
+  useEffect(() => {
+    if (!missionMarkersRef.current) return
+
+    // Clear existing markers
+    missionMarkersRef.current.clearLayers()
+
+    // Add mission markers
+    missions.forEach(mission => {
+      const marker = L.marker([mission.lat, mission.lng], {
+        icon: createMissionIcon(mission.status)
+      })
+
+      marker.on('click', () => {
+        if (onMissionClick) {
+          onMissionClick(mission)
+        }
+      })
+
+      missionMarkersRef.current?.addLayer(marker)
+    })
+  }, [missions, onMissionClick])
 
   return (
     <>
