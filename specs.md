@@ -80,7 +80,7 @@ Hier ist ein Vorschlag für die zentralen Tabellen:
   - `user_id` (UUID, Fremdschlüssel zu `profiles.id`)
   - `station_id` (integer, Fremdschlüssel zu `stations.id`)
   - `vehicle_type_id` (integer, Fremdschlüssel zu `vehicle_types.id`)
-  - `status` (enum: 'at_station', 'en_route', 'on_scene', 'returning')
+  - `status` (enum: 'status_1', 'status_2', 'status_3', 'status_4', 'status_5', 'status_6', 'status_7', 'status_8', 'status_9')
   - `assigned_personnel` (integer, Anzahl des Personals auf dem Fahrzeug)
 
 - `vehicle_types` (Definition aller kaufbaren Fahrzeuge)
@@ -342,15 +342,46 @@ f. Erstelle einen neuen Eintrag in der `missions`-Tabelle mit `status: 'new'`, d
 
 ---
 
-**Status:** ✅ **Phase 1, 2, 3, 4 & 5 vollständig abgeschlossen**
+**Status:** ✅ **Phase 1, 2, 3, 4, 5 & 6 vollständig abgeschlossen**
 
 - **Phase 1:** Grundgerüst mit deutscher Lokalisierung und Benutzeroberfläche ✅
 - **Phase 2:** Supabase Backend-Integration mit Datenbankschema und RLS ✅
 - **Phase 3:** User Authentication System mit Stadt-Auswahl und Karten-Integration ✅  
 - **Phase 4:** Station Building & Vehicle Management System ✅
 - **Phase 5:** Mission System Implementation mit visuellen Markern und realistischer Standortgenerierung ✅
+- **Phase 6:** Vehicle Dispatch System mit OSRM-Routing und deutscher Lokalisierung ✅
+- **🔧 BUGFIX:** Dynamische Fahrzeugstatus-Anzeige korrigiert (September 2025) ✅
+  - VehiclesTab zeigt jetzt korrekte Status direkt aus Datenbank (status_1-9)
+  - Entfernt Überschreibung durch calculateFMSStatus() Funktion
+  - Echte Echtzeit-Statusanzeige basierend auf tatsächlichen DB-Werten
 
-Das Projekt ist bereit für Phase 6: Real-time Features & Vehicle Dispatch System.
+Das Projekt ist bereit für Phase 7: Real-time Features & Advanced Mission Completion.
+
+## **🚒 Abgeschlossenes Alarmierungssystem (Phase 6)**
+
+### **📍 OSRM-basierte Entfernungsberechnung:**
+- Integration mit OSRM (Open Source Routing Machine) für realistische Straßenentfernungen
+- Automatischer Fallback auf geschätzte Entfernungen (Luftlinie × 1.4) bei API-Fehlern
+- Batch-Verarbeitung mit API-Ratenbegrenzung für optimale Performance
+- Anzeige in Kilometern mit geschätzter Fahrzeit
+
+### **🎯 Professionelle Alarmierungs-Oberfläche:**
+- Fahrzeuge nach Wachen gruppiert mit vollständigen Stationsinformationen
+- Echtzeit-Entfernungsberechnung mit Lade-Indikatoren
+- Multi-Fahrzeug-Auswahl mit visueller Rückmeldung
+- FMS-Status Integration für deutsche Rettungsdienstprotokolle
+
+### **⚡ Datenbank-Integration & Fehlerbehandlung:**
+- Korrekte vehicle_status Enum-Behandlung (at_station → on_scene)
+- Missions-Status Lifecycle-Management (new → dispatched)
+- Umfassende Fehlerprotokollierung und Wiederherstellungsmechanismen
+- Separate Datenbankabfragen zur Umgehung komplexer JOIN-Limitierungen
+
+### **🇩🇪 Deutsche Lokalisierung & UX-Verbesserungen:**
+- Vollständig deutsche Benutzeroberfläche mit konsistenten Lucide React Icons
+- Lade-Zustände und Fortschrittsindikatoren im gesamten Workflow
+- Status-basierte Filterung für verfügbare Fahrzeuge
+- Detaillierte Fahrzeuginformationen mit Zustand und Personalstatus
 
 ## **🎨 Abgeschlossene UI-Optimierungen (Commit: 70e8021)**
 
@@ -383,6 +414,6 @@ Das Projekt ist bereit für Phase 6: Real-time Features & Vehicle Dispatch Syste
 
 ---
 
-**Nächster Meilenstein:** Supabase Datenbank-Setup und User Authentication (Phase 2)
+**Nächster Meilenstein:** Real-time Subscriptions und Mission Completion System (Phase 7)
 
-**Arbeitsbereich:** Development Branch bereit für Backend-Integration
+**Arbeitsbereich:** Development Branch bereit für Echtzeit-Features und erweiterte Mission-Logik

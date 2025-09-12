@@ -115,7 +115,7 @@ export function calculateFMSStatus(vehicle: {
     }
   }
 
-  // Fallback: Zuordnung basierend auf vehicle.status
+  // Zuordnung basierend auf vehicle.status (aktuelle DB-Werte sind status_X)
   switch (vehicle.status) {
     case 'status_1':
       return 1 // Einsatzbereit über Funk
@@ -135,6 +135,17 @@ export function calculateFMSStatus(vehicle: {
       return 8 // Am Transportziel
     case 'status_9':
       return 9 // Notarzt aufgenommen
+    // Fallback für neue Enum-Werte (falls später umgestellt)
+    case 'at_station':
+      return 2 // Einsatzbereit auf Wache
+    case 'dispatched':
+      return 3 // Anfahrt zum Einsatzort (alarmiert, aber noch nicht unterwegs)
+    case 'en_route':
+      return 3 // Anfahrt zum Einsatzort
+    case 'on_scene':
+      return 4 // Ankunft am Einsatzort
+    case 'returning':
+      return 3 // Rückfahrt zur Wache (als Anfahrt gewertet)
     default:
       return 2 // Fallback: Einsatzbereit auf Wache
   }

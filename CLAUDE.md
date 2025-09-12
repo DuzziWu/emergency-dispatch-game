@@ -6,36 +6,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Emergency Dispatch Game (Leitstellenspiel NextGen) - A modern browser-based emergency dispatch simulation game where players manage fire and EMS stations, purchase vehicles, and respond to automatically generated incidents on real maps using actual road networks.
 
-## Development Commands
+## Essential Development Commands
 
 ```bash
-# Start development server with Turbopack (recommended)
-npm run dev
+# Development server
+npm run dev              # Start with Turbopack (recommended for development)
+npm run build            # Build for production with Turbopack
+npm run start            # Start production server
+npm run lint             # Run ESLint with Next.js configuration
 
-# Build for production with Turbopack
-npm run build
+# Type checking
+npx tsc --noEmit         # Manual TypeScript type checking
 
-# Start production server
-npm run start
-
-# Run linter (ESLint with Next.js configuration)
-npm run lint
-
-# TypeScript type checking (manual)
-npx tsc --noEmit
-
-# Supabase local development
-supabase start           # Start local Supabase stack
+# Database operations (requires Supabase CLI)
+supabase start           # Start local Supabase stack (required for development)
 supabase stop            # Stop local Supabase stack
-supabase status          # Check status of local services
-supabase db reset        # Reset database with migrations and seed data
-supabase studio          # Open Supabase Studio (localhost:54323)
+supabase status          # Check status of all local services
+supabase studio          # Open Supabase Studio UI (localhost:54323)
+supabase db reset        # Reset database with all migrations and seed data
+supabase db diff         # Generate migration from schema changes
+supabase db push         # Push local schema changes to remote
+supabase migration up    # Apply pending migrations locally
 ```
 
 **Development URLs:**
 - Next.js app: http://localhost:3000
 - Supabase Studio: http://localhost:54323
 - Supabase API: http://127.0.0.1:54321
+
+**Quick Setup for New Developers:**
+1. Install dependencies: `npm install`
+2. Set up environment variables (copy `.env.example` to `.env.local` if exists)
+3. Start Supabase: `supabase start`
+4. Reset database with seed data: `supabase db reset`
+5. Start development server: `npm run dev`
 
 ## Technology Stack & Architecture
 
@@ -57,7 +61,7 @@ supabase studio          # Open Supabase Studio (localhost:54323)
 - **OpenStreetMap Nominatim API** for realistic location search and geocoding ✅
 - **OpenStreetMap Overpass API** for precise water body detection and location verification ✅
 - Custom mission markers with status-based visual indicators and smooth animations ✅
-- Future: OSRM or Mapbox Directions API for real route calculations
+- **OSRM (Open Source Routing Machine)** for road-based distance calculation ✅
 
 **Backend (Implemented):**
 - Supabase for PostgreSQL database, authentication, and real-time subscriptions ✅
@@ -175,27 +179,70 @@ All tables defined as TypeScript interfaces in `src/types/database.ts`:
   - Comprehensive filtering using Overpass API for precise location verification
 - **Static map centering system** - prevents automatic recentering on mission generation ✅
 
-**🔄 NEXT PHASE (Real-time Features & Vehicle Dispatch):**
-- Real-time updates via Supabase subscriptions for live mission updates
-- Vehicle dispatch system with mission assignment
-- Vehicle routing and movement animation on map
+**✅ COMPLETED (Phase 6: Vehicle Dispatch System):**
+- **Complete dispatch system with road-based distance calculation** ✅
+  - OSRM (Open Source Routing Machine) integration for realistic routing distances
+  - Fallback to estimated road distance (air distance × 1.4) when routing API fails
+  - Batch distance calculation with API rate limiting for optimal performance
+- **Professional dispatch modal interface** ✅
+  - Vehicles grouped by station with complete station information
+  - Real-time distance calculation displayed in kilometers and travel time
+  - Multi-vehicle selection with visual feedback and status indicators
+  - FMS (Funkmeldesystem) status integration for German emergency service protocols
+- **Mission status lifecycle management** ✅
+  - Mission status: new → dispatched → on_scene (via vehicle dispatch)
+  - Vehicle status: at_station → on_scene (dispatched and active)
+  - Database updates with proper enum handling and error recovery
+- **Enhanced user experience** ✅
+  - German localization throughout dispatch interface
+  - Lucide React icons for consistent professional design
+  - Status-based visual indicators and smooth transitions
+  - Detailed logging and error handling for debugging
+
+**🔄 NEXT PHASE (Mission Completion & Real-time Features):**
 - Mission completion workflow and reward calculation system
+- Real-time updates via Supabase subscriptions for live mission updates
+- Vehicle movement animation on map during dispatch
+- Advanced station economics and progression systems
 
 ## Key Implementation Guidelines
 
 **When working with this codebase:**
 
 1. **Map Components**: Always use dynamic imports for Leaflet components to avoid SSR hydration issues
-2. **Real-time Features**: All live updates must flow through Supabase subscriptions, not polling
+2. **Real-time Features**: All live updates must flow through Supabase subscriptions, not polling  
 3. **Game Logic**: Critical calculations (payouts, mission outcomes) run server-side in Edge Functions
 4. **Localization**: Maintain German language throughout the interface
 5. **UI Philosophy**: Keep interface minimal, map-centric, with icon-based controls
-6. **Routing**: Must use actual road networks, never air-distance calculations
+6. **Routing**: Use OSRM for road-based distances with fallback to estimated distances (air × 1.4)
 7. **Performance**: Use Turbopack for development and builds (`--turbopack` flag)
+8. **Database**: Always run lint and type check before database changes
+
+**Testing & Verification:**
+- No formal test suite currently implemented
+- Manual testing workflow: Start dev server + Supabase, test core user flows
+- Key flows to verify: Auth registration/login, city selection, station building, vehicle purchase, mission dispatch
+- Always test Leaflet map functionality after changes (common SSR hydration issues)
+- Use Supabase Studio (localhost:54323) to verify database state changes
+
+**Critical Implementation Patterns:**
+- **Leaflet dynamic imports**: `const Map = dynamic(() => import('./LeafletMap'), { ssr: false })`
+- **Supabase client**: Import from `@/lib/supabase` - single client instance
+- **Database types**: Import interfaces from `@/types/database.ts` - keep in sync with schema
+- **FMS Status**: Use functions from `@/lib/fms-status.ts` for vehicle status logic
+- **OSRM routing**: Use functions from `@/lib/routing.ts` with proper error handling
+- **Vehicle Status Display**: Use direct database status mapping in VehiclesTab, not calculateFMSStatus()
+- **Database Status Values**: Always use `status_1`, `status_2`, etc. as stored in database
+
+**Common Issues & Solutions:**
+- **Hydration errors**: Ensure Leaflet components use dynamic imports with `ssr: false`
+- **OSRM rate limiting**: Implement batch processing with delays between requests
+- **Database enum handling**: Always verify enum values match database constraints
+- **German coordinates**: Use zoom level 15 for city-level views, higher for detailed station placement
 
 **Code Style:**
-- TypeScript strict mode enabled
-- Use absolute imports with `@/` prefix
+- TypeScript strict mode enabled - no `any` types allowed
+- Use absolute imports with `@/` prefix (configured in `tsconfig.json`)
 - Follow Next.js App Router conventions
 - Components should be client-side (`'use client'`) only when necessary
 - Maintain dark-mode-first design principles
@@ -205,72 +252,47 @@ All tables defined as TypeScript interfaces in `src/types/database.ts`:
 - **Modular component architecture** - break large components into smaller, focused modules
 
 **Database Considerations:**
-- All tables follow the detailed schema in `specs.md`
+- All tables follow the detailed schema in `specs.md` and `src/types/database.ts`
 - Use Row Level Security (RLS) for multi-tenant data isolation
 - Real-time subscriptions filtered by `user_id`
 - Mission generation must use actual geographic data from OpenStreetMap
+- Migrations are located in `supabase/migrations/` with numbered prefixes
+- Seed data is in `supabase/seed_data/` and loaded via `supabase db reset`
 
-## Recent Changes
+## Current Implementation Status
 
-**Current Status (development branch):**
-- All Phase 1, 2, 3 & 4 objectives completed
-- Complete user authentication system with German localization
-- OpenStreetMap city selection with automatic map centering
-- Protected routes with step-by-step onboarding flow
-- User profile integration throughout the game interface
-- **Complete Station Building & Vehicle Management System** ✅
-- Ready for Phase 5: Mission System and Real-time Features
+**Completed Core Features (Phase 1-6):**
+- User authentication with German localization and city selection
+- Station building system with real German fire/EMS station data
+- Vehicle management with FMS status system and OSRM routing
+- Mission system with realistic OpenStreetMap-based location generation
+- Professional dispatch interface with distance calculation
 
-**Major Components Implemented:**
-- `src/contexts/AuthContext.tsx` - Global authentication state management
-- `src/components/AuthForm.tsx` - German login/registration interface
-- `src/components/CitySelector.tsx` - OpenStreetMap-powered city selection
-- **`src/components/StationManagement.tsx`** - Refactored from 1433-line monolith to modular 300-line component
-- **`src/components/station/`** - Complete modular station management system:
-  - `StationTabs.tsx` - Tab navigation with Lucide React icons (Home, Car, Users, Hammer)
-  - `VehiclesTab.tsx` - Compact vehicle display with automatic FMS status
-  - `VehiclePurchaseModal.tsx` - Multi-step vehicle purchase workflow
-  - `VehicleConfigurationModal.tsx` - Vehicle configuration and module selection
-  - `VehicleManagementModal.tsx` - Individual vehicle management with workshop
-- **`src/lib/fms-status.ts`** - Complete FMS (Funkmeldesystem) status management system
-- Enhanced `src/components/GameLayout.tsx` - User profile integration, build mode & mission system
-- Enhanced `src/components/LeafletMap.tsx` - Lucide React icons for map markers & mission visualization
-- Enhanced `src/components/Map.tsx` - Mission prop passing and component integration
-- Updated `src/app/layout.tsx` - AuthProvider integration & German metadata
+**Key Architectural Components:**
+- **Authentication**: `src/contexts/AuthContext.tsx` + `src/components/AuthForm.tsx`
+- **Database Types**: `src/types/database.ts` (TypeScript interfaces for all tables)
+- **Maps**: `src/components/Map.tsx` (dynamic import wrapper) + `src/components/LeafletMap.tsx` (core map)
+- **Station Management**: Modular system in `src/components/station/` (tabs, vehicles, purchase, config)
+- **Game Logic**: `src/lib/fms-status.ts` (vehicle status), `src/lib/routing.ts` (OSRM distances)
+- **Main UI**: `src/components/GameLayout.tsx` (game interface), `src/components/DispatchModal.tsx`
 
-**Key Features Added in Phase 4:**
-- Station purchase and management system
-- Vehicle purchase with configuration and modules  
-- **FMS Status system (1-9)** for realistic German emergency service protocols:
-  - Automatic status calculation based on vehicle state, personnel, and condition
-  - German status descriptions (Einsatzbereit über Funk, Anfahrt zum Einsatzort, etc.)
-  - Color-coded status indicators throughout the interface
-- Vehicle repair workshop with condition tracking (`condition_percent` column)
-- Vehicle selling with depreciation calculation based on kilometers and condition
-- Personnel management per vehicle with capacity tracking
-- Station extensions and upgrades system
-- German reverse geocoding for realistic addresses
-- **Lucide React icon system integration:**
-  - Consistent professional icons throughout the interface
-  - Map markers with Flame (🔥) and Heart (❤️) icons
-  - Tab navigation with intuitive icons (Home, Car, Users, Hammer)
-  - Removal of emoji usage in favor of scalable SVG icons
-- **Component architecture refactoring:**
-  - Broke down 1433-line StationManagement into 5 focused modules
-  - Improved maintainability and code organization
-  - Better separation of concerns for vehicle management workflows
+**Database Schema:**
+- 9 migrations in `supabase/migrations/` (latest: vehicle status enum fix)
+- Seed data: 12 German vehicle types, station blueprints, mission types
+- All tables use RLS policies for multi-tenant security
 
-**Key Features Added in Phase 5:**
-- **Mission marker visualization system:**
-  - Color-coded status indicators: New (gold + blinking), Dispatched (gold), En route (blue), On scene (green)
-  - Smooth CSS animations with golden glow effects and ease-in-out transitions
-  - Clickable markers for mission details and interaction
-- **Advanced location generation system:**
-  - `mission_types.location_types` integration for contextually appropriate placement
-  - OpenStreetMap Nominatim API for realistic address-based location search
-  - Multi-layered water body exclusion system (search filtering + keyword detection + Overpass API verification)
-  - Conservative error handling with location validation and fallback mechanisms
-- **Enhanced map interaction:**
-  - Static map centering to prevent automatic recentering on mission generation  
-  - Improved user experience with consistent map viewport during gameplay
-  - Mission marker layer management with efficient rendering
+**Recent Fixes (September 2025):**
+- **Fixed Dynamic Vehicle Status Display**: VehiclesTab now correctly shows real-time status from database
+  - `status_1` → "Einsatzbereit über Funk" (green)
+  - `status_2` → "Einsatzbereit auf Wache" (green)
+  - `status_3` → "Anfahrt zum Einsatzort" (orange) 
+  - `status_6` → "Nicht einsatzbereit" (red)
+- **Corrected Status Value Mapping**: Fixed enum value conflicts between code and database
+- **Simplified Status Logic**: Direct database status mapping instead of calculated overrides
+
+**Next Phase Objectives (Mission Completion & Real-time Features):**
+- Mission completion workflow with reward calculation system
+- Real-time updates via Supabase subscriptions for live mission/vehicle updates
+- Vehicle movement animation on map during dispatch and return
+- Advanced station economics and progression systems
+- Multiplayer features and leaderboards

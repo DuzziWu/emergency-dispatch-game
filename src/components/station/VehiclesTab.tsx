@@ -2,12 +2,14 @@
 
 import type { Station, Vehicle, VehicleType } from '@/types/database'
 import { getFMSStatusText, getFMSStatusColor, calculateFMSStatus } from '@/lib/fms-status'
+import { RefreshCw } from 'lucide-react'
 
 interface VehiclesTabProps {
   station: Station
   stationVehicles: Vehicle[]
   vehicleTypes: VehicleType[]
   onParkingSlotClick: (index: number, vehicle?: Vehicle) => void
+  onRefresh?: () => void
 }
 
 const getVehicleImageName = (vehicleType: VehicleType): string => {
@@ -36,19 +38,31 @@ export default function VehiclesTab({
   station,
   stationVehicles,
   vehicleTypes,
-  onParkingSlotClick
+  onParkingSlotClick,
+  onRefresh
 }: VehiclesTabProps) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
-          <div className="p-2 bg-blue-500/20 rounded-lg">
-            <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0zM7 9l4-4V3M17 9l-4-4V3M7 9v6h10V9M7 9H3M17 9h4" />
-            </svg>
-          </div>
-          Fahrzeugstellplätze
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0zM7 9l4-4V3M17 9l-4-4V3M7 9v6h10V9M7 9H3M17 9h4" />
+              </svg>
+            </div>
+            Fahrzeugstellplätze
+          </h3>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+              title="Status aktualisieren"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          )}
+        </div>
         
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: station.vehicle_slots }, (_, index) => {
@@ -95,34 +109,31 @@ export default function VehiclesTab({
                         {vehicle.callsign || `Fahrzeug ${index + 1}`}
                       </h4>
                       
-                      {(() => {
-                        // Berechne aktuellen FMS-Status basierend auf Fahrzeugzustand
-                        const actualFMSStatus = calculateFMSStatus({
-                          status: vehicle.status,
-                          assigned_personnel: vehicle.assigned_personnel,
-                          condition_percent: vehicle.condition_percent,
-                          movement_state: vehicle.movement_state
-                        })
-                        const colors = getFMSStatusColor(actualFMSStatus)
+{(() => {
+                        // Verwende direkt den Status aus der Datenbank (status_1, status_2, etc.)
+                        const dbStatus = vehicle.status
+                        let fmsStatusNumber = 2 // Fallback
+                        
+                        // Extrahiere die Nummer aus status_X
+                        if (dbStatus?.startsWith('status_')) {
+                          const statusNum = parseInt(dbStatus.replace('status_', ''))
+                          if (!isNaN(statusNum) && statusNum >= 1 && statusNum <= 9) {
+                            fmsStatusNumber = statusNum
+                          }
+                        }
+                        
+                        const colors = getFMSStatusColor(fmsStatusNumber)
+                        const statusText = getFMSStatusText(fmsStatusNumber)
+                        
                         return (
-                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-2 ${colors.bg} ${colors.text} border ${colors.border}`}>
-                            <div className={`w-2 h-2 rounded-full ${colors.dot}`}></div>
-                            Status {actualFMSStatus}
-                          </div>
+                          <>
+                            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-2 ${colors.bg} ${colors.text} border ${colors.border}`}>
+                              <div className={`w-2 h-2 rounded-full ${colors.dot}`}></div>
+                              {statusText}
+                            </div>
+                          </>
                         )
                       })()}
-                      
-                      <p className="text-xs text-gray-400">
-                        {(() => {
-                          const actualFMSStatus = calculateFMSStatus({
-                            status: vehicle.status,
-                            assigned_personnel: vehicle.assigned_personnel,
-                            condition_percent: vehicle.condition_percent,
-                            movement_state: vehicle.movement_state
-                          })
-                          return getFMSStatusText(actualFMSStatus)
-                        })()}
-                      </p>
                     </div>
                   </div>
                 ) : (
