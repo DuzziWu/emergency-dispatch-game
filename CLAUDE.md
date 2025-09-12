@@ -18,14 +18,24 @@ npm run build
 # Start production server
 npm run start
 
-# Run linter  
+# Run linter (ESLint with Next.js configuration)
 npm run lint
 
 # TypeScript type checking (manual)
 npx tsc --noEmit
+
+# Supabase local development
+supabase start           # Start local Supabase stack
+supabase stop            # Stop local Supabase stack
+supabase status          # Check status of local services
+supabase db reset        # Reset database with migrations and seed data
+supabase studio          # Open Supabase Studio (localhost:54323)
 ```
 
-Development server runs on: http://localhost:3000
+**Development URLs:**
+- Next.js app: http://localhost:3000
+- Supabase Studio: http://localhost:54323
+- Supabase API: http://127.0.0.1:54321
 
 ## Technology Stack & Architecture
 
@@ -38,6 +48,7 @@ Development server runs on: http://localhost:3000
 - TailwindCSS v4 with dark-mode-first design
 - Custom color palette for emergency services (fire=red, EMS=orange, warnings=yellow)
 - Fully German-localized interface with icon-based navigation
+- **Lucide React icon library** for consistent, professional icons throughout the UI
 - Responsive overlay UI over fullscreen map
 
 **Maps & Geolocation:**
@@ -59,17 +70,33 @@ Development server runs on: http://localhost:3000
 ```
 src/
 ├── app/                     # Next.js App Router
-│   ├── layout.tsx          # Root layout with Geist fonts
+│   ├── layout.tsx          # Root layout with AuthProvider & German metadata
 │   ├── page.tsx            # Home page (renders GameLayout)
 │   └── globals.css         # Global styles
 ├── components/             # React components
-│   ├── GameLayout.tsx      # Main game UI overlay
-│   ├── Map.tsx            # Leaflet map wrapper
-│   └── LeafletMap.tsx     # Core map component
+│   ├── GameLayout.tsx      # Main game UI with user profile integration
+│   ├── Map.tsx            # Leaflet map wrapper (dynamic import for SSR)
+│   ├── LeafletMap.tsx     # Core map component with Lucide React icons
+│   ├── AuthForm.tsx       # German login/registration interface
+│   ├── CitySelector.tsx   # OpenStreetMap city selection
+│   ├── StationManagement.tsx # Station management with modular architecture
+│   └── station/           # Modular station components
+│       ├── StationTabs.tsx          # Tab navigation with Lucide icons
+│       ├── VehiclesTab.tsx          # Vehicle management interface
+│       ├── VehiclePurchaseModal.tsx # Vehicle purchase workflow
+│       ├── VehicleConfigurationModal.tsx # Vehicle configuration
+│       └── VehicleManagementModal.tsx    # Individual vehicle management
+├── contexts/
+│   └── AuthContext.tsx    # Global authentication state management
 ├── types/
-│   └── database.ts        # Database schema types
+│   └── database.ts        # Complete database schema types
 └── lib/
-    └── supabase.ts        # Supabase client setup
+    ├── supabase.ts        # Supabase client setup
+    └── fms-status.ts      # FMS (Funkmeldesystem) status management
+supabase/
+├── config.toml            # Local development configuration
+├── migrations/            # Database schema migrations
+└── seed_data/            # Vehicle types, mission types, station blueprints
 ```
 
 **Core Components:**
@@ -122,13 +149,24 @@ All tables defined as TypeScript interfaces in `src/types/database.ts`:
   - User profile integration in game interface with logout functionality
 - Git workflow established (main/development branches)
 
-**🔄 NEXT PHASE (Station Building & Vehicle Management):**
-- Station blueprint data seeding from real German fire/EMS stations
-- Station placement system on map with visual markers
-- Vehicle purchase interface integrated with station management
-- Personnel assignment and capacity management
-- Basic mission generation system
+**✅ COMPLETED (Phase 4: Station Building & Vehicle Management):**
+- Station blueprint data seeding from real German fire/EMS stations ✅
+- Station placement system on map with visual markers ✅
+- Vehicle purchase interface integrated with station management ✅
+- Personnel assignment and capacity management ✅
+- Complete StationManagement component with tabbed interface ✅
+- Build mode toggle with visual indicators ✅
+- Vehicle repair and selling system ✅
+- **FMS Status system (1-9) implementation** with automatic status calculation ✅
+- **Lucide React icon integration** for professional UI consistency ✅
+- **Modular component architecture** - refactored 1433-line monolith into maintainable modules ✅
+
+**🔄 NEXT PHASE (Mission System & Real-time Features):**
+- Mission generation system with real OpenStreetMap locations
+- Mission display on map with markers and alerts
 - Real-time updates via Supabase subscriptions
+- Vehicle routing and movement animation
+- Mission completion and reward system
 
 ## Key Implementation Guidelines
 
@@ -148,6 +186,10 @@ All tables defined as TypeScript interfaces in `src/types/database.ts`:
 - Follow Next.js App Router conventions
 - Components should be client-side (`'use client'`) only when necessary
 - Maintain dark-mode-first design principles
+- ESLint configuration uses Next.js Core Web Vitals + TypeScript rules
+- Custom color palette: fire (#ef4444), EMS (#f97316), missions (#fbbf24)
+- **Use Lucide React icons consistently** - no custom SVGs or emojis
+- **Modular component architecture** - break large components into smaller, focused modules
 
 **Database Considerations:**
 - All tables follow the detailed schema in `specs.md`
@@ -158,17 +200,48 @@ All tables defined as TypeScript interfaces in `src/types/database.ts`:
 ## Recent Changes
 
 **Current Status (development branch):**
-- All Phase 1, 2 & 3 objectives completed
+- All Phase 1, 2, 3 & 4 objectives completed
 - Complete user authentication system with German localization
 - OpenStreetMap city selection with automatic map centering
 - Protected routes with step-by-step onboarding flow
 - User profile integration throughout the game interface
-- Ready for Phase 4: Station Building and Vehicle Management
+- **Complete Station Building & Vehicle Management System** ✅
+- Ready for Phase 5: Mission System and Real-time Features
 
-**Authentication System Files Added:**
+**Major Components Implemented:**
 - `src/contexts/AuthContext.tsx` - Global authentication state management
 - `src/components/AuthForm.tsx` - German login/registration interface
 - `src/components/CitySelector.tsx` - OpenStreetMap-powered city selection
-- Enhanced `src/components/GameLayout.tsx` - User profile integration & logout
-- Enhanced `src/components/LeafletMap.tsx` - Dynamic map centering
+- **`src/components/StationManagement.tsx`** - Refactored from 1433-line monolith to modular 300-line component
+- **`src/components/station/`** - Complete modular station management system:
+  - `StationTabs.tsx` - Tab navigation with Lucide React icons (Home, Car, Users, Hammer)
+  - `VehiclesTab.tsx` - Compact vehicle display with automatic FMS status
+  - `VehiclePurchaseModal.tsx` - Multi-step vehicle purchase workflow
+  - `VehicleConfigurationModal.tsx` - Vehicle configuration and module selection
+  - `VehicleManagementModal.tsx` - Individual vehicle management with workshop
+- **`src/lib/fms-status.ts`** - Complete FMS (Funkmeldesystem) status management system
+- Enhanced `src/components/GameLayout.tsx` - User profile integration & build mode
+- Enhanced `src/components/LeafletMap.tsx` - Lucide React icons for map markers
 - Updated `src/app/layout.tsx` - AuthProvider integration & German metadata
+
+**Key Features Added in Phase 4:**
+- Station purchase and management system
+- Vehicle purchase with configuration and modules  
+- **FMS Status system (1-9)** for realistic German emergency service protocols:
+  - Automatic status calculation based on vehicle state, personnel, and condition
+  - German status descriptions (Einsatzbereit über Funk, Anfahrt zum Einsatzort, etc.)
+  - Color-coded status indicators throughout the interface
+- Vehicle repair workshop with condition tracking (`condition_percent` column)
+- Vehicle selling with depreciation calculation based on kilometers and condition
+- Personnel management per vehicle with capacity tracking
+- Station extensions and upgrades system
+- German reverse geocoding for realistic addresses
+- **Lucide React icon system integration:**
+  - Consistent professional icons throughout the interface
+  - Map markers with Flame (🔥) and Heart (❤️) icons
+  - Tab navigation with intuitive icons (Home, Car, Users, Hammer)
+  - Removal of emoji usage in favor of scalable SVG icons
+- **Component architecture refactoring:**
+  - Broke down 1433-line StationManagement into 5 focused modules
+  - Improved maintainability and code organization
+  - Better separation of concerns for vehicle management workflows

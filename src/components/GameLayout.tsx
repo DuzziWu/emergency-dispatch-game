@@ -11,6 +11,7 @@ interface GameLayoutProps {
 export default function GameLayout({ children }: GameLayoutProps) {
   const { profile, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [buildMode, setBuildMode] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
@@ -25,6 +26,8 @@ export default function GameLayout({ children }: GameLayoutProps) {
           [51.1657, 10.4515] // Germany center as fallback
         }
         zoom={15} // Close zoom for neighborhood view
+        buildMode={buildMode}
+        userId={profile?.id}
       />
       
       {/* UI Overlay */}
@@ -98,12 +101,28 @@ export default function GameLayout({ children }: GameLayoutProps) {
             </svg>
           </button>
           
-          <button className="w-12 h-12 bg-gray-900/90 hover:bg-gray-800/90 rounded-lg flex items-center justify-center transition-colors duration-200 text-white" title="Bauen">
+          <button 
+            onClick={() => setBuildMode(!buildMode)}
+            className={`w-12 h-12 ${buildMode ? 'bg-blue-600/90 hover:bg-blue-500/90' : 'bg-gray-900/90 hover:bg-gray-800/90'} rounded-lg flex items-center justify-center transition-colors duration-200 text-white`} 
+            title={buildMode ? "Baumodus verlassen" : "Bauen"}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </button>
         </div>
+
+        {/* Build Mode Indicator */}
+        {buildMode && (
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-blue-600/90 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="text-sm font-medium">Baumodus aktiv - Klicke auf Wachen-Marker zum Kaufen</span>
+            </div>
+          </div>
+        )}
 
         {/* Bottom Left - Mission Log */}
         <div className="absolute bottom-4 left-4 w-80 max-h-60 bg-gray-900/90 backdrop-blur-sm rounded-lg p-4 overflow-y-auto text-white">

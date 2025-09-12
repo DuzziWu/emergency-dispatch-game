@@ -15,12 +15,16 @@ interface MapProps {
   center?: [number, number]
   zoom?: number
   className?: string
+  buildMode?: boolean
+  userId?: string
 }
 
 export default function Map({ 
   center = [51.1657, 10.4515], // Germany center
   zoom = 6,
-  className = "fullscreen"
+  className = "fullscreen",
+  buildMode = false,
+  userId
 }: MapProps) {
-  return <LeafletMap center={center} zoom={zoom} className={className} />
+  return <LeafletMap center={center} zoom={zoom} className={className} buildMode={buildMode} userId={userId} />
 }
