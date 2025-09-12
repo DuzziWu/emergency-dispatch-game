@@ -15,6 +15,7 @@ interface StationTabsProps {
   stationAddress: string
   vehicleTypes: VehicleType[]
   onParkingSlotClick: (index: number, vehicle?: Vehicle) => void
+  onRefreshVehicles?: () => void
 }
 
 const STATION_TABS = [
@@ -95,7 +96,7 @@ function OverviewTab({ station, blueprint, stationVehicles, stationAddress }: {
           <div className="flex items-center gap-4 mb-3">
             <div className="p-2 bg-orange-500/20 rounded-lg">
               <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 919.288 0" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0" />
               </svg>
             </div>
             <h3 className="text-sm font-medium text-gray-300">Personal</h3>
@@ -285,7 +286,8 @@ export default function StationTabs({
   stationVehicles,
   stationAddress,
   vehicleTypes,
-  onParkingSlotClick
+  onParkingSlotClick,
+  onRefreshVehicles
 }: StationTabsProps) {
   const renderTabContent = () => {
     switch (activeTab) {
@@ -305,6 +307,7 @@ export default function StationTabs({
             stationVehicles={stationVehicles}
             vehicleTypes={vehicleTypes}
             onParkingSlotClick={onParkingSlotClick}
+            onRefresh={onRefreshVehicles}
           />
         )
       case 'personnel':

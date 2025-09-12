@@ -27,6 +27,7 @@ export default function StationManagement({ station, blueprint, onClose, userId 
   const [stationAddress, setStationAddress] = useState<string>('Adresse wird geladen...')
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [showVehicleManagement, setShowVehicleManagement] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(Date.now())
 
   const loadStationAddress = async () => {
     try {
@@ -79,13 +80,16 @@ export default function StationManagement({ station, blueprint, onClose, userId 
 
   const loadStationVehicles = async () => {
     try {
+      console.log(`Loading vehicles for station ${station.id} at`, new Date().toLocaleTimeString())
       const { data, error } = await supabase
         .from('vehicles')
         .select('*, vehicle_types(*)')
         .eq('station_id', station.id)
       
       if (error) throw error
+      console.log(`Loaded ${data?.length || 0} vehicles for station ${station.id}:`, data)
       setStationVehicles(data || [])
+      setLastRefresh(Date.now())
     } catch (error) {
       console.error('Error loading station vehicles:', error)
     }
@@ -198,7 +202,70 @@ export default function StationManagement({ station, blueprint, onClose, userId 
     loadVehicleTypes()
     loadStationVehicles()
     loadStationAddress()
-  }, [])
+
+    // Set up real-time subscription for vehicle status changes
+    const subscription = supabase
+      .channel(`station-vehicles-${station.id}`)
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vehicles',
+          filter: `station_id=eq.${station.id}`
+        },
+        (payload) => {
+          console.log('Vehicle data changed for station', station.id, ':', payload)
+          // Reload vehicles when any change occurs
+          loadStationVehicles()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status for station', station.id, ':', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to vehicle changes for station', station.id)
+        }
+      })
+
+    // Also listen for global vehicle changes (in case the filter doesn't work)
+    const globalSubscription = supabase
+      .channel(`all-vehicles-${station.id}`)
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vehicles'
+        },
+        (payload) => {
+          console.log('Global vehicle change:', payload)
+          // Check if this change affects our station
+          if (payload.new && payload.new.station_id === station.id) {
+            console.log('Vehicle change affects our station, reloading...')
+            loadStationVehicles()
+          }
+          if (payload.old && payload.old.station_id === station.id) {
+            console.log('Vehicle change affects our station (old), reloading...')
+            loadStationVehicles()
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Global subscription status:', status)
+      })
+
+    // Set up periodic refresh as fallback (every 10 seconds)
+    const refreshInterval = setInterval(() => {
+      console.log('Periodic refresh of vehicles for station', station.id)
+      loadStationVehicles()
+    }, 10000)
+
+    // Cleanup subscriptions and interval on unmount
+    return () => {
+      console.log('Cleaning up subscriptions and interval for station', station.id)
+      supabase.removeChannel(subscription)
+      supabase.removeChannel(globalSubscription)
+      clearInterval(refreshInterval)
+    }
+  }, [station.id])
 
 
   return (
@@ -268,6 +335,7 @@ export default function StationManagement({ station, blueprint, onClose, userId 
           stationAddress={stationAddress}
           vehicleTypes={vehicleTypes}
           onParkingSlotClick={handleParkingSlotClick}
+          onRefreshVehicles={loadStationVehicles}
         />
       </div>
 
