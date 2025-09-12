@@ -238,11 +238,11 @@ export default function StationManagement({ station, blueprint, onClose, userId 
         (payload) => {
           console.log('Global vehicle change:', payload)
           // Check if this change affects our station
-          if (payload.new && payload.new.station_id === station.id) {
+          if (payload.new && typeof payload.new === 'object' && 'station_id' in payload.new && payload.new.station_id === station.id) {
             console.log('Vehicle change affects our station, reloading...')
             loadStationVehicles()
           }
-          if (payload.old && payload.old.station_id === station.id) {
+          if (payload.old && typeof payload.old === 'object' && 'station_id' in payload.old && payload.old.station_id === station.id) {
             console.log('Vehicle change affects our station (old), reloading...')
             loadStationVehicles()
           }

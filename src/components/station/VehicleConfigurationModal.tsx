@@ -189,7 +189,10 @@ export default function VehicleConfigurationModal({
                     <span className="text-gray-300">Module:</span>
                     <span className="text-blue-400 font-bold">
                       € {selectedModules.reduce((total, moduleId) => {
-                        const module = selectedVehicleType.configuration_options?.find((opt: any) => opt.id === moduleId)
+                        const configOptions = Array.isArray(selectedVehicleType.configuration_options) 
+                          ? selectedVehicleType.configuration_options as any[] 
+                          : []
+                        const module = configOptions.find((opt: any) => opt.id === moduleId)
                         return total + (module?.price_modifier || 0)
                       }, 0).toLocaleString()}
                     </span>
@@ -212,9 +215,13 @@ export default function VehicleConfigurationModal({
                 Verfügbare Module
               </h4>
               
-              {selectedVehicleType.configuration_options && selectedVehicleType.configuration_options.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedVehicleType.configuration_options.map((option: any) => (
+              {(() => {
+                const configOptions = Array.isArray(selectedVehicleType.configuration_options) 
+                  ? selectedVehicleType.configuration_options as any[] 
+                  : []
+                return configOptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {configOptions.map((option: any) => (
                     <div
                       key={option.id}
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
@@ -259,9 +266,10 @@ export default function VehicleConfigurationModal({
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-gray-400 text-center py-8">Für dieses Fahrzeug sind keine Module verfügbar.</p>
-              )}
+                ) : (
+                  <p className="text-gray-400 text-center py-8">Für dieses Fahrzeug sind keine Module verfügbar.</p>
+                )
+              })()}
             </div>
           </div>
 

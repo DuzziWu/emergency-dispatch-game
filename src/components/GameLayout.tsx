@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Map from './Map'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { Mission } from '@/types/database'
+import { Mission, Vehicle, VehicleType } from '@/types/database'
 import DispatchModal from './DispatchModal'
 import { calculateFMSStatus, getFMSStatusColor, getFMSStatusText } from '@/lib/fms-status'
+import type { VehicleAnimationControls } from './LeafletMap'
 
 interface GameLayoutProps {
   children?: React.ReactNode
@@ -30,6 +31,340 @@ export default function GameLayout({ children }: GameLayoutProps) {
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null)
   const [showDispatchModal, setShowDispatchModal] = useState(false)
   const [dispatchedVehicles, setDispatchedVehicles] = useState<any[]>([])
+  
+  // Reference to vehicle animation controls
+  const vehicleAnimationRef = useRef<VehicleAnimationControls | null>(null)
+  
+  // Debug state
+  const [debugInfo, setDebugInfo] = useState<string>('')
+
+  // Handle map ready callback
+  const handleMapReady = (controls: VehicleAnimationControls) => {
+    vehicleAnimationRef.current = controls
+    console.log('Vehicle animation controls ready')
+    setDebugInfo('✅ Animation Controls Ready')
+  }
+
+  // Debug function to test animation manually
+  const testAnimation = async () => {
+    if (!vehicleAnimationRef.current || !profile?.id) {
+      setDebugInfo('❌ Animation controls or profile not ready')
+      return
+    }
+
+    if (dispatchedVehicles.length === 0 || activeMissions.length === 0) {
+      setDebugInfo('❌ No dispatched vehicles or missions found')
+      return
+    }
+
+    try {
+      setDebugInfo('🚀 Starting test animation...')
+      
+      const vehicle = dispatchedVehicles[0]
+      const mission = activeMissions.find(m => m.assigned_vehicle_ids?.includes(vehicle.id))
+      
+      if (!mission) {
+        setDebugInfo('❌ No mission found for vehicle')
+        return
+      }
+
+      // Get station data
+      const { data: stationData, error: stationError } = await supabase
+        .from('stations')
+        .select(`
+          *,
+          station_blueprints (lat, lng)
+        `)
+        .eq('id', vehicle.station_id)
+        .single()
+
+      if (stationError) {
+        setDebugInfo(`❌ Station error: ${stationError.message}`)
+        return
+      }
+
+      const { data: vehicleTypeData, error: vtError } = await supabase
+        .from('vehicle_types')
+        .select('*')
+        .eq('id', vehicle.vehicle_type_id)
+        .single()
+
+      if (vtError) {
+        setDebugInfo(`❌ Vehicle type error: ${vtError.message}`)
+        return
+      }
+
+      const stationPos: [number, number] = [stationData.station_blueprints.lat, stationData.station_blueprints.lng]
+      const missionPos: [number, number] = [mission.lat, mission.lng]
+
+      const vehicleWithType = {
+        ...vehicle,
+        vehicle_types: vehicleTypeData
+      }
+
+      console.log('Test animation:', { vehicle: vehicleWithType, stationPos, missionPos })
+      
+      await vehicleAnimationRef.current.addVehicleAnimation(
+        vehicleWithType,
+        stationPos,
+        missionPos,
+        'to_mission'
+      )
+
+      setDebugInfo(`✅ Animation started: ${vehicle.callsign} from [${stationPos}] to [${missionPos}]`)
+      
+    } catch (error) {
+      console.error('Test animation error:', error)
+      setDebugInfo(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  // Real-time vehicle status subscription
+  useEffect(() => {
+    if (!profile?.id) return
+
+    console.log('Setting up vehicle status subscription for user:', profile.id)
+
+    // Subscribe to vehicle changes for this user
+    const channel = supabase
+      .channel('vehicle-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'vehicles',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        async (payload) => {
+          console.log('Vehicle status changed:', payload)
+          
+          const updatedVehicle = payload.new as Vehicle & { vehicle_types: VehicleType }
+          const oldVehicle = payload.old as Vehicle
+          
+          // Handle status transitions that trigger animations
+          if (vehicleAnimationRef.current) {
+            await handleVehicleStatusChange(updatedVehicle, oldVehicle)
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status)
+      })
+
+    return () => {
+      console.log('Cleaning up vehicle status subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [profile?.id])
+
+  // Real-time mission status subscription
+  useEffect(() => {
+    if (!profile?.id) return
+
+    console.log('Setting up mission status subscription for user:', profile.id)
+
+    // Subscribe to mission changes for this user
+    const channel = supabase
+      .channel('mission-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'missions',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        async (payload) => {
+          console.log('🔔 Mission status changed:', payload.old?.status, '→', payload.new?.status, 'mission ID:', payload.new?.id)
+          
+          const updatedMission = payload.new as Mission
+          
+          // Update local state
+          setActiveMissions(prev =>
+            prev.map(mission =>
+              mission.id === updatedMission.id ? updatedMission : mission
+            )
+          )
+          
+          // Update selected mission if it's the current one
+          if (selectedMission?.id === updatedMission.id) {
+            console.log('📋 Updating selected mission and reloading dispatched vehicles')
+            setSelectedMission(updatedMission)
+            // Reload dispatched vehicles to reflect status changes
+            await loadDispatchedVehicles(updatedMission)
+          }
+          
+          console.log(`✅ Mission ${updatedMission.id} status updated to:`, updatedMission.status)
+        }
+      )
+      .subscribe((status) => {
+        console.log('Mission subscription status:', status)
+      })
+
+    return () => {
+      console.log('Cleaning up mission status subscription')
+      supabase.removeChannel(channel)
+    }
+  }, [profile?.id, selectedMission?.id])
+
+  // Handle vehicle status changes and trigger animations
+  const handleVehicleStatusChange = async (newVehicle: Vehicle & { vehicle_types: VehicleType }, oldVehicle: Vehicle) => {
+    if (!vehicleAnimationRef.current) {
+      console.log('Vehicle animation ref not ready')
+      return
+    }
+
+    console.log(`Vehicle ${newVehicle.callsign} status: ${oldVehicle.status} -> ${newVehicle.status}`)
+
+    try {
+      // Get station and mission coordinates for routing
+      console.log('Loading station and vehicle type data...')
+      const [stationData, vehicleTypeData] = await Promise.all([
+        supabase
+          .from('stations')
+          .select(`
+            *,
+            station_blueprints (lat, lng)
+          `)
+          .eq('id', newVehicle.station_id)
+          .single(),
+        supabase
+          .from('vehicle_types')
+          .select('*')
+          .eq('id', newVehicle.vehicle_type_id)
+          .single()
+      ])
+
+      if (stationData.error || vehicleTypeData.error) {
+        console.error('Error loading station/vehicle type data:', stationData.error, vehicleTypeData.error)
+        return
+      }
+
+      const station = stationData.data
+      const vehicleType = vehicleTypeData.data
+      const stationPos: [number, number] = [station.station_blueprints.lat, station.station_blueprints.lng]
+
+      const vehicleWithType = {
+        ...newVehicle,
+        vehicle_types: vehicleType
+      }
+
+      // Handle different status transitions
+      if (oldVehicle.status === 'status_2' && newVehicle.status === 'status_3') {
+        // Start journey to mission
+        const mission = activeMissions.find(m => m.assigned_vehicle_ids?.includes(newVehicle.id))
+        if (mission) {
+          console.log(`Starting animation: ${newVehicle.callsign} to mission at [${mission.lat}, ${mission.lng}]`)
+          await vehicleAnimationRef.current.addVehicleAnimation(
+            vehicleWithType,
+            stationPos,
+            [mission.lat, mission.lng],
+            'to_mission'
+          )
+        }
+      } else if (oldVehicle.status === 'status_4' && newVehicle.status === 'status_1') {
+        // Start return journey to station
+        const mission = activeMissions.find(m => m.assigned_vehicle_ids?.includes(newVehicle.id))
+        if (mission) {
+          console.log(`Starting return animation: ${newVehicle.callsign} from mission to station`)
+          await vehicleAnimationRef.current.addVehicleAnimation(
+            vehicleWithType,
+            [mission.lat, mission.lng],
+            stationPos,
+            'to_station'
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error handling vehicle status change:', error)
+    }
+  }
+
+  // Handle vehicle arrival at destination
+  const handleVehicleArrival = async (vehicleId: number, journeyType: 'to_mission' | 'to_station') => {
+    console.log('🚗🚗🚗 HANDLEVEEHICLEARRIVAL CALLED:', vehicleId, 'journey type:', journeyType, 'profile:', profile?.id)
+    console.log('🚗 Current activeMissions:', activeMissions.length)
+    
+    if (!profile?.id) return
+
+    try {
+      let newStatus: string
+      
+      if (journeyType === 'to_mission') {
+        // Vehicle arrived at mission - set to status_4 (Am Einsatzort)
+        newStatus = 'status_4'
+        console.log(`🎯 Vehicle ${vehicleId} arrived at mission, setting status to status_4`)
+      } else {
+        // Vehicle returned to station - set to status_2 (Einsatzbereit auf Wache)
+        newStatus = 'status_2'
+        console.log(`Vehicle ${vehicleId} returned to station, setting status to status_2`)
+      }
+
+      // Update vehicle status in database
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ status: newStatus })
+        .eq('id', vehicleId)
+        .eq('user_id', profile.id)
+
+      if (error) {
+        console.error('Error updating vehicle status on arrival:', error)
+        return
+      }
+
+      // Update mission status to 'on_scene' if this is the first vehicle arriving
+      if (journeyType === 'to_mission') {
+        const mission = activeMissions.find(m => m.assigned_vehicle_ids?.includes(vehicleId))
+        console.log('🎯 Vehicle arrived at mission. Found mission:', mission?.id, 'current status:', mission?.status)
+        
+        if (mission && mission.status !== 'on_scene') {
+          const { error: missionError } = await supabase
+            .from('missions')
+            .update({ status: 'on_scene' })
+            .eq('id', mission.id)
+            .eq('user_id', profile.id)
+
+          if (missionError) {
+            console.error('Error updating mission status to on_scene:', missionError)
+          } else {
+            // Update local state
+            setActiveMissions(prev =>
+              prev.map(m => 
+                m.id === mission.id ? { ...m, status: 'on_scene' } : m
+              )
+            )
+            
+            // Update selected mission if it's the current one
+            if (selectedMission?.id === mission.id) {
+              setSelectedMission(prev => prev ? { ...prev, status: 'on_scene' } : null)
+            }
+            
+            console.log(`Mission ${mission.id} status updated to on_scene`)
+          }
+        }
+        
+        // Reload dispatched vehicles to refresh status display
+        if (selectedMission) {
+          await loadDispatchedVehicles(selectedMission)
+        }
+      } else {
+        // Vehicle returned to station (status_2)
+        // NOTE: Vehicle should already be removed from mission during recall (handleRecallVehicles)
+        // This is just to ensure consistency in case of edge cases
+        console.log(`🏠 Vehicle ${vehicleId} returned to station (status_2). Mission assignment should already be updated.`)
+      }
+
+      // Reload dispatched vehicles to show updated status
+      if (selectedMission) {
+        loadDispatchedVehicles(selectedMission)
+      }
+
+      console.log(`Vehicle ${vehicleId} arrival handled successfully`)
+    } catch (error) {
+      console.error('Error handling vehicle arrival:', error)
+    }
+  }
 
   // Set map center once when profile loads and load existing missions
   useEffect(() => {
@@ -51,6 +386,9 @@ export default function GameLayout({ children }: GameLayoutProps) {
         
         if (error) throw error
         setActiveMissions(missions || [])
+        
+        // Auto-cleanup stuck vehicles when missions are loaded
+        setTimeout(() => fixStuckVehicles(), 1000)
       } catch (error) {
         console.error('Error loading missions:', error)
       }
@@ -128,26 +466,52 @@ export default function GameLayout({ children }: GameLayoutProps) {
         }
         
         if (validLocations.length > 0) {
-          // Prefer addresses with house numbers for residential/commercial
+          // Always prefer addresses with house numbers for ALL location types
           const addressesWithHouseNumbers = validLocations.filter((loc: any) => 
             loc.address?.house_number && 
             loc.address?.road && 
             (loc.address?.city || loc.address?.town || loc.address?.village)
           )
           
-          if (addressesWithHouseNumbers.length > 0 && (locationTypes.includes('residential') || locationTypes.includes('commercial'))) {
-            const randomLocation = addressesWithHouseNumbers[Math.floor(Math.random() * addressesWithHouseNumbers.length)]
-            return {
-              lat: parseFloat(randomLocation.lat),
-              lng: parseFloat(randomLocation.lon)
+          console.log(`Found ${validLocations.length} valid locations, ${addressesWithHouseNumbers.length} with house numbers`)
+          
+          // First priority: Try addresses with house numbers (for all types)
+          if (addressesWithHouseNumbers.length > 0) {
+            for (let i = 0; i < Math.min(5, addressesWithHouseNumbers.length); i++) {
+              const randomLocation = addressesWithHouseNumbers[Math.floor(Math.random() * addressesWithHouseNumbers.length)]
+              const lat = parseFloat(randomLocation.lat)
+              const lng = parseFloat(randomLocation.lon)
+              
+              const isAccessible = await verifyLocationAccessible(lat, lng)
+              if (isAccessible) {
+                console.log(`Found accessible mission location with house number: ${randomLocation.display_name}`)
+                return { lat, lng }
+              }
             }
           }
           
-          // Fallback to any valid location
-          const randomLocation = validLocations[Math.floor(Math.random() * validLocations.length)]
-          return {
-            lat: parseFloat(randomLocation.lat),
-            lng: parseFloat(randomLocation.lon)
+          // Second priority: Only for special types (hospital, school, public) allow locations without house numbers
+          if (locationTypes.some(type => ['hospital', 'school', 'public', 'industrial'].includes(type))) {
+            const specialLocations = validLocations.filter((loc: any) => 
+              // Accept locations that are clearly buildings/facilities even without house numbers
+              (loc.class === 'amenity' && ['hospital', 'school', 'university', 'fire_station', 'police'].includes(loc.type)) ||
+              (loc.class === 'building' && loc.type !== 'residential') ||
+              (loc.class === 'landuse' && loc.type === 'industrial')
+            )
+            
+            console.log(`Found ${specialLocations.length} special facilities without house numbers`)
+            
+            for (let i = 0; i < Math.min(3, specialLocations.length); i++) {
+              const randomLocation = specialLocations[Math.floor(Math.random() * specialLocations.length)]
+              const lat = parseFloat(randomLocation.lat)
+              const lng = parseFloat(randomLocation.lon)
+              
+              const isAccessible = await verifyLocationAccessible(lat, lng)
+              if (isAccessible) {
+                console.log(`Found accessible special facility: ${randomLocation.display_name}`)
+                return { lat, lng }
+              }
+            }
           }
         }
       }
@@ -157,6 +521,54 @@ export default function GameLayout({ children }: GameLayoutProps) {
     
     // Fallback to random location if API fails
     return await generateRandomLocationWithWaterCheck(centerLat, centerLng, radiusKm)
+  }
+
+  // Verify that a mission location is reachable by road from at least one station
+  const verifyLocationAccessible = async (missionLat: number, missionLng: number): Promise<boolean> => {
+    if (!profile?.id) return false
+    
+    try {
+      // Get user's stations with blueprint coordinates
+      const { data: stations } = await supabase
+        .from('stations')
+        .select(`
+          id,
+          station_blueprint:station_blueprints(lat, lng)
+        `)
+        .eq('user_id', profile.id)
+      
+      if (!stations || stations.length === 0) return false
+      
+      // Test routing from at least one station
+      for (const station of stations) {
+        const blueprints = (station as any).station_blueprint || (station as any).station_blueprints
+        const blueprint = blueprints && blueprints.length > 0 ? blueprints[0] : null
+        if (!blueprint) continue
+        
+        try {
+          // Use OSRM to test if route is possible
+          const routeResult = await import('@/lib/routing').then(module => 
+            module.calculateRoadDistance(blueprint.lat, blueprint.lng, missionLat, missionLng)
+          )
+          
+          // If OSRM returns a successful route, the location is accessible
+          if (routeResult.success && routeResult.distance > 0 && routeResult.distance < 50) { // Max 50km reasonable distance
+            console.log(`Mission location accessible from station via ${routeResult.distance}km route`)
+            return true
+          }
+        } catch (routeError) {
+          console.warn('Route calculation failed for station:', station.id, routeError)
+          continue
+        }
+      }
+      
+      console.log('Mission location not accessible from any station')
+      return false
+      
+    } catch (error) {
+      console.error('Error verifying location accessibility:', error)
+      return false
+    }
   }
   
   // Verify location is not on water body using Overpass API
@@ -220,18 +632,68 @@ export default function GameLayout({ children }: GameLayoutProps) {
     }
   }
 
-  // Fallback random location generator with water check
+  // Enhanced fallback: Try to get real addresses from a broader search
   const generateRandomLocationWithWaterCheck = async (centerLat: number, centerLng: number, radiusKm: number = 3, maxAttempts: number = 10) => {
+    console.log('Fallback generator: Searching for real addresses in broader area...')
+    
+    try {
+      // Expanded search for ANY addresses with house numbers in a broader radius
+      const expandedRadius = radiusKm * 1.5 // 1.5x bigger search area
+      const searchQuery = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=50&bounded=1&viewbox=${centerLng - (expandedRadius/111)},${centerLat + (expandedRadius/111)},${centerLng + (expandedRadius/111)},${centerLat - (expandedRadius/111)}&q=house residential commercial -natural:water -natural:lake -waterway -landuse:reservoir&accept-language=de`
+      
+      const response = await fetch(searchQuery)
+      const locations = await response.json()
+      
+      if (locations && locations.length > 0) {
+        // Filter for addresses with house numbers ONLY
+        const realAddresses = locations.filter((loc: any) => 
+          loc.address?.house_number && 
+          loc.address?.road && 
+          (loc.address?.city || loc.address?.town || loc.address?.village) &&
+          loc.class !== 'natural' && loc.class !== 'waterway' &&
+          !loc.display_name?.toLowerCase().includes('see') &&
+          !loc.display_name?.toLowerCase().includes('lake') &&
+          !loc.display_name?.toLowerCase().includes('fluss')
+        )
+        
+        console.log(`Fallback found ${realAddresses.length} real addresses with house numbers`)
+        
+        // Test up to 5 real addresses
+        for (let i = 0; i < Math.min(5, realAddresses.length); i++) {
+          const randomLocation = realAddresses[Math.floor(Math.random() * realAddresses.length)]
+          const lat = parseFloat(randomLocation.lat)
+          const lng = parseFloat(randomLocation.lon)
+          
+          const isValidLocation = await verifyLocationNotOnWater(lat, lng)
+          if (!isValidLocation) continue
+          
+          const isAccessible = await verifyLocationAccessible(lat, lng)
+          if (isAccessible) {
+            console.log(`Found accessible fallback address: ${randomLocation.display_name}`)
+            return { lat, lng }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Enhanced fallback search failed:', error)
+    }
+    
+    // Last resort: Generate completely random coordinates (but warn user)
+    console.warn(`Failed to find any real addresses, generating random coordinates as absolute fallback`)
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const location = generateRandomLocation(centerLat, centerLng, radiusKm)
       
       const isValidLocation = await verifyLocationNotOnWater(location.lat, location.lng)
-      if (isValidLocation) {
+      if (!isValidLocation) continue
+      
+      const isAccessible = await verifyLocationAccessible(location.lat, location.lng)
+      if (isAccessible) {
+        console.log(`Found accessible random location after ${attempt + 1} attempts (WARNING: No specific address)`)
         return location
       }
     }
     
-    // If all attempts failed, return last location (better than nothing)
+    console.warn(`Absolute fallback: Using random location without full verification`)
     return generateRandomLocation(centerLat, centerLng, radiusKm)
   }
   
@@ -429,11 +891,17 @@ export default function GameLayout({ children }: GameLayoutProps) {
     try {
       // Update mission status to 'dispatched' and assign vehicles
       console.log('Updating mission status...')
+      
+      // Merge new vehicle IDs with existing ones (don't overwrite)
+      const existingVehicleIds = selectedMission.assigned_vehicle_ids || []
+      const allVehicleIds = [...new Set([...existingVehicleIds, ...vehicleIds])] // Remove duplicates
+      console.log('🚚 Merging vehicles. Existing:', existingVehicleIds, 'New:', vehicleIds, 'Combined:', allVehicleIds)
+      
       const { data: missionData, error: missionError } = await supabase
         .from('missions')
         .update({
           status: 'dispatched',
-          assigned_vehicle_ids: vehicleIds
+          assigned_vehicle_ids: allVehicleIds
         })
         .eq('id', selectedMission.id)
         .eq('user_id', profile.id)
@@ -456,7 +924,13 @@ export default function GameLayout({ children }: GameLayoutProps) {
         })
         .in('id', vehicleIds)
         .eq('user_id', profile.id)
-        .select()
+        .select(`
+          *,
+          vehicle_types (
+            name,
+            required_station_type
+          )
+        `)
 
       if (vehicleError) {
         console.error('Vehicle update error:', vehicleError)
@@ -469,17 +943,63 @@ export default function GameLayout({ children }: GameLayoutProps) {
       setActiveMissions(prev => 
         prev.map(mission => 
           mission.id === selectedMission.id 
-            ? { ...mission, status: 'dispatched', assigned_vehicle_ids: vehicleIds }
+            ? { ...mission, status: 'dispatched', assigned_vehicle_ids: allVehicleIds }
             : mission
         )
       )
 
       // Update selected mission
       setSelectedMission(prev => 
-        prev ? { ...prev, status: 'dispatched', assigned_vehicle_ids: vehicleIds } : null
+        prev ? { ...prev, status: 'dispatched', assigned_vehicle_ids: allVehicleIds } : null
       )
 
       console.log(`Dispatched ${vehicleIds.length} vehicles to mission ${selectedMission.id}`)
+      
+      // Start automatic vehicle animations to mission with staggered delays
+      if (vehicleAnimationRef.current && vehicleData) {
+        console.log('Starting automatic dispatch animations with delays...')
+        
+        for (let index = 0; index < vehicleData.length; index++) {
+          const vehicle = vehicleData[index]
+          const delay = index * 3000 // 3 seconds delay between each vehicle
+          
+          // Use setTimeout to stagger the animations
+          setTimeout(async () => {
+            try {
+              // Find station coordinates
+              const stationData = await supabase
+                .from('stations')
+                .select(`
+                  station_blueprints!inner(lat, lng)
+                `)
+                .eq('id', vehicle.station_id)
+                .single()
+
+              if (stationData.data && !stationData.error) {
+                const blueprintData = Array.isArray(stationData.data.station_blueprints) 
+                  ? stationData.data.station_blueprints[0] 
+                  : stationData.data.station_blueprints
+                const stationPos: [number, number] = [blueprintData.lat, blueprintData.lng]
+                
+                console.log(`🚨 Starting delayed animation (${delay}ms): ${vehicle.callsign} to mission`)
+                
+                if (vehicleAnimationRef.current) {
+                  await vehicleAnimationRef.current.addVehicleAnimation(
+                    vehicle as Vehicle & { vehicle_types: VehicleType },
+                    stationPos,
+                    [selectedMission.lat, selectedMission.lng],
+                    'to_mission'
+                  )
+                }
+              } else {
+                console.error('Failed to get station data for vehicle:', vehicle.callsign, stationData.error)
+              }
+            } catch (error) {
+              console.error('Error in delayed vehicle animation:', error)
+            }
+          }, delay)
+        }
+      }
       
     } catch (error) {
       console.error('Error dispatching vehicles:', error)
@@ -487,9 +1007,79 @@ export default function GameLayout({ children }: GameLayoutProps) {
     }
   }
 
+  // Cleanup function to fix stuck vehicles
+  const fixStuckVehicles = async () => {
+    if (!profile?.id) return
+
+    try {
+      console.log('🔧 Checking for stuck vehicles...')
+      
+      // Find vehicles that are in status_1 (Rückfahrt) or status_4 (am Einsatzort) but not assigned to any mission
+      const { data: stuckVehicles, error: stuckError } = await supabase
+        .from('vehicles')
+        .select('id, callsign, status')
+        .eq('user_id', profile.id)
+        .in('status', ['status_1', 'status_4'])
+
+      if (stuckError) {
+        console.error('Error finding stuck vehicles:', stuckError)
+        return
+      }
+
+      if (stuckVehicles && stuckVehicles.length > 0) {
+        // Check if any of these vehicles are actually assigned to missions
+        const { data: missions, error: missionsError } = await supabase
+          .from('missions')
+          .select('assigned_vehicle_ids')
+          .eq('user_id', profile.id)
+          .neq('status', 'completed')
+
+        if (missionsError) {
+          console.error('Error loading missions for stuck vehicle check:', missionsError)
+          return
+        }
+
+        // Get all assigned vehicle IDs across all missions
+        const allAssignedVehicleIds = new Set<number>()
+        missions?.forEach(mission => {
+          mission.assigned_vehicle_ids?.forEach((id: number) => allAssignedVehicleIds.add(id))
+        })
+
+        // Find truly stuck vehicles (status_1 or status_4 but not assigned to any mission)
+        const trulyStuckVehicles = stuckVehicles.filter(vehicle => !allAssignedVehicleIds.has(vehicle.id))
+
+        if (trulyStuckVehicles.length > 0) {
+          console.log('🚨 Found stuck vehicles:', trulyStuckVehicles.map(v => `${v.callsign} (ID: ${v.id})`))
+          
+          // Fix stuck vehicles by setting them to status_2 (back at station)
+          const { data: fixedVehicles, error: fixError } = await supabase
+            .from('vehicles')
+            .update({ status: 'status_2' })
+            .in('id', trulyStuckVehicles.map(v => v.id))
+            .eq('user_id', profile.id)
+            .select('id, callsign, status')
+
+          if (fixError) {
+            console.error('Error fixing stuck vehicles:', fixError)
+          } else {
+            console.log('✅ Fixed stuck vehicles:', fixedVehicles?.map(v => `${v.callsign} (ID: ${v.id}) -> ${v.status}`))
+            alert(`${trulyStuckVehicles.length} stuck Fahrzeug${trulyStuckVehicles.length === 1 ? '' : 'e'} wurden zur Station zurückgesetzt.`)
+          }
+        } else {
+          console.log('✅ No stuck vehicles found')
+        }
+      }
+    } catch (error) {
+      console.error('Error in fixStuckVehicles:', error)
+    }
+  }
+
   // Load dispatched vehicles for selected mission
   const loadDispatchedVehicles = async (mission: Mission) => {
+    console.log('🔍 Loading dispatched vehicles for mission:', mission.id, 'assigned_vehicle_ids:', mission.assigned_vehicle_ids)
+    
     if (!mission.assigned_vehicle_ids || mission.assigned_vehicle_ids.length === 0) {
+      console.log('❌ No assigned vehicle IDs found')
       setDispatchedVehicles([])
       return
     }
@@ -506,7 +1096,9 @@ export default function GameLayout({ children }: GameLayoutProps) {
           stations!inner (
             name,
             station_blueprints (
-              city
+              city,
+              lat,
+              lng
             )
           )
         `)
@@ -514,7 +1106,7 @@ export default function GameLayout({ children }: GameLayoutProps) {
 
       if (error) throw error
       
-      console.log('Loaded dispatched vehicles:', vehicles)
+      console.log('✅ Loaded dispatched vehicles:', vehicles?.length, 'vehicles:', vehicles)
       setDispatchedVehicles(vehicles || [])
     } catch (error) {
       console.error('Error loading dispatched vehicles:', error)
@@ -533,63 +1125,127 @@ export default function GameLayout({ children }: GameLayoutProps) {
   const handleRecallVehicles = async (vehicleIds: number[]) => {
     if (!selectedMission || !profile?.id) return
 
+    console.log(`🚨 Recalling vehicles:`, vehicleIds, 'from mission:', selectedMission.id)
+    console.log('🔍 Available dispatched vehicles:', dispatchedVehicles.map(v => ({ id: v.id, callsign: v.callsign, status: v.status })))
+
     try {
-      // Update vehicle status to status_2 (Bereit über Funk - returning)
-      const { error: vehicleError } = await supabase
+      // Update vehicle status to status_1 (Rückfahrt zum Standort) to trigger animation
+      const { data: updatedVehicles, error: vehicleError } = await supabase
         .from('vehicles')
-        .update({ status: 'status_2' }) // FMS Status 2: Einsatzbereit auf Wache (returning)
+        .update({ status: 'status_1' }) // FMS Status 1: Triggers return animation
         .in('id', vehicleIds)
         .eq('user_id', profile.id)
+        .select('id, callsign, status')
 
       if (vehicleError) {
-        console.error('Vehicle recall error:', vehicleError)
+        console.error('❌ Vehicle recall error:', vehicleError)
         throw vehicleError
       }
 
-      // Remove vehicles from mission
-      const updatedVehicleIds = selectedMission.assigned_vehicle_ids.filter(
-        id => !vehicleIds.includes(id)
-      )
-
-      const { error: missionError } = await supabase
+      console.log(`✅ Successfully updated ${updatedVehicles?.length || 0} vehicles to status_1:`, updatedVehicles)
+      console.log(`Initiated recall for ${vehicleIds.length} vehicles from mission ${selectedMission.id} - vehicles will start return animation`)
+      
+      // CRITICAL FIX: Immediately remove recalled vehicles from mission assigned_vehicle_ids in database
+      const remainingVehicleIds = selectedMission.assigned_vehicle_ids.filter(id => !vehicleIds.includes(id))
+      const newMissionStatus = remainingVehicleIds.length === 0 ? 'new' : 'on_scene'
+      
+      console.log(`🗃️ Updating mission ${selectedMission.id} in database:`, {
+        old_vehicle_ids: selectedMission.assigned_vehicle_ids,
+        recalled_vehicle_ids: vehicleIds,
+        remaining_vehicle_ids: remainingVehicleIds,
+        new_status: newMissionStatus
+      })
+      
+      const { error: missionUpdateError } = await supabase
         .from('missions')
-        .update({
-          assigned_vehicle_ids: updatedVehicleIds,
-          status: updatedVehicleIds.length === 0 ? 'new' : 'dispatched'
+        .update({ 
+          assigned_vehicle_ids: remainingVehicleIds,
+          status: newMissionStatus
         })
         .eq('id', selectedMission.id)
         .eq('user_id', profile.id)
-
-      if (missionError) {
-        console.error('Mission update error:', missionError)
-        throw missionError
+      
+      if (missionUpdateError) {
+        console.error('❌ Error updating mission assigned_vehicle_ids:', missionUpdateError)
+        throw missionUpdateError
+      } else {
+        console.log(`✅ Successfully updated mission ${selectedMission.id} assigned_vehicle_ids in database`)
       }
-
-      // Update local state
+      
+      // Trigger return animations with staggered delays (fallback for subscription issues)
+      if (vehicleAnimationRef.current) {
+        console.log(`🔙 Starting staggered return animations for ${vehicleIds.length} vehicles`)
+        
+        for (let index = 0; index < vehicleIds.length; index++) {
+          const vehicleId = vehicleIds[index]
+          const vehicle = dispatchedVehicles.find(v => v.id === vehicleId)
+          const delay = index * 2000 // 2 seconds delay between each vehicle for return
+          
+          if (vehicle) {
+            // Use setTimeout to stagger the return animations
+            setTimeout(async () => {
+              try {
+                console.log(`🏠 Starting delayed return animation (${delay}ms): ${vehicle.callsign}`)
+                
+                // Get station coordinates - check if they exist
+                if (!vehicle.stations?.station_blueprints?.lat || !vehicle.stations?.station_blueprints?.lng) {
+                  console.error('Missing station coordinates for vehicle:', vehicle.callsign, vehicle.stations)
+                  return
+                }
+                
+                const stationPos: [number, number] = [
+                  vehicle.stations.station_blueprints.lat, 
+                  vehicle.stations.station_blueprints.lng
+                ]
+                
+                const missionPos: [number, number] = [selectedMission.lat, selectedMission.lng]
+                
+                // Vehicle starts return from mission to station
+                if (vehicleAnimationRef.current) {
+                  await vehicleAnimationRef.current.addVehicleAnimation(
+                    vehicle,
+                    missionPos,
+                    stationPos,
+                    'to_station'
+                  )
+                  
+                  console.log(`✅ Return animation started for ${vehicle.callsign}`)
+                }
+              } catch (animError) {
+                console.error(`Failed to start return animation for vehicle ${vehicleId}:`, animError)
+              }
+            }, delay)
+          }
+        }
+      }
+      
+      // Immediately update local state to show the recall has been initiated
+      // Update both assigned_vehicle_ids AND status in local state
       setActiveMissions(prev =>
         prev.map(mission =>
           mission.id === selectedMission.id
             ? { 
                 ...mission, 
-                assigned_vehicle_ids: updatedVehicleIds,
-                status: updatedVehicleIds.length === 0 ? 'new' : 'dispatched'
+                assigned_vehicle_ids: remainingVehicleIds,
+                status: newMissionStatus
               }
             : mission
         )
       )
-
+      
       // Update selected mission
-      const updatedMission = {
-        ...selectedMission,
-        assigned_vehicle_ids: updatedVehicleIds,
-        status: updatedVehicleIds.length === 0 ? 'new' : 'dispatched'
+      if (selectedMission) {
+        setSelectedMission(prev => prev ? { 
+          ...prev, 
+          assigned_vehicle_ids: remainingVehicleIds,
+          status: newMissionStatus
+        } : null)
       }
-      setSelectedMission(updatedMission)
-
-      // Reload dispatched vehicles
-      loadDispatchedVehicles(updatedMission)
-
-      console.log(`Recalled ${vehicleIds.length} vehicles from mission ${selectedMission.id}`)
+      
+      // Force reload of dispatched vehicles to show updated status
+      if (selectedMission) {
+        loadDispatchedVehicles(selectedMission)
+      }
 
     } catch (error) {
       console.error('Error recalling vehicles:', error)
@@ -607,6 +1263,8 @@ export default function GameLayout({ children }: GameLayoutProps) {
         userId={profile?.id}
         missions={activeMissions}
         onMissionClick={setSelectedMission}
+        onMapReady={handleMapReady}
+        onVehicleArrival={handleVehicleArrival}
       />
       
       {/* UI Overlay */}
@@ -673,6 +1331,15 @@ export default function GameLayout({ children }: GameLayoutProps) {
 
         {/* Top Right - Action Buttons */}
         <div className="absolute top-4 right-4 flex flex-col gap-2">
+          <button 
+            onClick={fixStuckVehicles}
+            className="w-12 h-12 bg-red-900/90 hover:bg-red-800/90 rounded-lg flex items-center justify-center transition-colors duration-200 text-white" 
+            title="Stuck Fahrzeuge reparieren"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m0 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+          </button>
           <button className="w-12 h-12 bg-gray-900/90 hover:bg-gray-800/90 rounded-lg flex items-center justify-center transition-colors duration-200 text-white" title="Einstellungen">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -708,6 +1375,17 @@ export default function GameLayout({ children }: GameLayoutProps) {
               </svg>
             )}
           </button>
+
+          {/* Debug Animation Button */}
+          <button 
+            onClick={testAnimation}
+            className="w-12 h-12 bg-purple-600/90 hover:bg-purple-500/90 rounded-lg flex items-center justify-center transition-colors duration-200 text-white" 
+            title="Test Animation"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </button>
         </div>
 
         {/* Build Mode Indicator */}
@@ -718,6 +1396,32 @@ export default function GameLayout({ children }: GameLayoutProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
               <span className="text-sm font-medium">Baumodus aktiv - Klicke auf Wachen-Marker zum Kaufen</span>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Info Panel */}
+        {debugInfo && (
+          <div className="absolute top-16 right-4 bg-purple-900/90 backdrop-blur-sm rounded-lg px-4 py-3 text-white max-w-md">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="font-medium">Debug Info</span>
+              <button 
+                onClick={() => setDebugInfo('')}
+                className="ml-auto w-4 h-4 text-purple-300 hover:text-white"
+              >
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="text-sm break-words">{debugInfo}</div>
+            <div className="text-xs text-purple-300 mt-2">
+              Animation Controls: {vehicleAnimationRef.current ? '✅' : '❌'} | 
+              Vehicles: {dispatchedVehicles.length} | 
+              Missions: {activeMissions.length}
             </div>
           </div>
         )}
@@ -825,17 +1529,28 @@ export default function GameLayout({ children }: GameLayoutProps) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0zM7 9l4-4V3M17 9l-4-4V3M7 9v6h10V9M7 9H3M17 9h4" />
                         </svg>
                         <span className="text-sm font-semibold text-orange-400">
-                          Alarmierte Fahrzeuge ({dispatchedVehicles.length})
+                          {selectedMission?.status === 'on_scene' 
+                            ? `Fahrzeuge vor Ort (${dispatchedVehicles.length})`
+                            : `Alarmierte Fahrzeuge (${dispatchedVehicles.length})`
+                          }
                         </span>
                       </div>
-                      {dispatchedVehicles.length > 0 && (
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => handleRecallVehicles(dispatchedVehicles.map(v => v.id))}
-                          className="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs hover:bg-red-600/30 transition-colors border border-red-600/30"
+                          onClick={() => setShowDispatchModal(true)}
+                          className="px-3 py-1 bg-orange-600/20 text-orange-400 rounded text-xs hover:bg-orange-600/30 transition-colors border border-orange-600/30"
                         >
-                          Alle zurückalarmieren
+                          Weitere alarmieren
                         </button>
-                      )}
+                        {dispatchedVehicles.length > 0 && (
+                          <button
+                            onClick={() => handleRecallVehicles(dispatchedVehicles.map(v => v.id))}
+                            className="px-3 py-1 bg-red-600/20 text-red-400 rounded text-xs hover:bg-red-600/30 transition-colors border border-red-600/30"
+                          >
+                            Alle zurückalarmieren
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     {dispatchedVehicles.length === 0 ? (

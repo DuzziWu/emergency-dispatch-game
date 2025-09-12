@@ -83,13 +83,19 @@ export default function DispatchModal({ mission, onClose, onDispatch, userId }: 
       const stationIds = stations.map(s => s.id)
       console.log('Station IDs:', stationIds)
       
-      // First try a simple query without joins or filters
-      const { data: vehicles, error: vehiclesError } = await supabase
+      // Query available vehicles (not already assigned to this mission)
+      let vehicleQuery = supabase
         .from('vehicles')
         .select('*')
         .in('station_id', stationIds)
         .in('status', ['status_1', 'status_2']) // Only show FMS Status 1+2 (einsatzbereit)
-        .order('callsign')
+        
+      // Exclude vehicles already assigned to this mission
+      if (mission.assigned_vehicle_ids && mission.assigned_vehicle_ids.length > 0) {
+        vehicleQuery = vehicleQuery.not('id', 'in', `(${mission.assigned_vehicle_ids.join(',')})`)
+      }
+      
+      const { data: vehicles, error: vehiclesError } = await vehicleQuery.order('callsign')
 
       if (vehiclesError) {
         console.error('Vehicles query error:', vehiclesError)
@@ -331,8 +337,7 @@ export default function DispatchModal({ mission, onClose, onDispatch, userId }: 
                                         {vehicle.assigned_personnel}/{vehicle.vehicle_types.personnel_requirement}
                                       </span>
                                       <span 
-                                        className="px-2 py-0.5 rounded text-xs"
-                                        style={{ backgroundColor: fmsColor + '20', color: fmsColor }}
+                                        className={`px-2 py-0.5 rounded text-xs ${fmsColor.bg} ${fmsColor.text} ${fmsColor.border}`}
                                       >
                                         FMS {fmsStatus}
                                       </span>

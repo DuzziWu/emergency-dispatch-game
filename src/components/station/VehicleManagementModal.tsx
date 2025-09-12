@@ -363,7 +363,7 @@ export default function VehicleManagementModal({
                   Installierte Module
                 </h3>
                 
-                {(vehicle.configuration?.modules || []).length > 0 ? (
+                {Array.isArray(vehicle.configuration?.modules) && vehicle.configuration.modules.length > 0 ? (
                   <div className="space-y-2">
                     {((vehicle.configuration?.modules || []) as string[]).map((moduleKey: string) => (
                       <div key={moduleKey} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
