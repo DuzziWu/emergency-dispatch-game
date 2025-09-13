@@ -121,7 +121,7 @@ export interface Mission {
   address: string
   caller_name?: string
   business_name?: string
-  status: 'new' | 'dispatched' | 'en_route' | 'on_scene' | 'completed' | 'failed'
+  status: 'new' | 'dispatched' | 'en_route' | 'on_scene' | 'completed' | 'failed' | 'scouted'
   caller_text: string
   payout: number
   outcome_type?: string
@@ -132,4 +132,7 @@ export interface Mission {
   assigned_vehicle_ids: number[]
   created_at: string
   completed_at?: string
+  processing_started_at?: string
+  processing_duration?: number // in seconds, default 30
+  processing_progress?: number // 0-100 percent
 }

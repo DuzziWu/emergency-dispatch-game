@@ -1,20 +1,23 @@
-// FMS (Funkmeldesystem) Status Codes
+// FMS (Funkmeldesystem) Status Codes - Vereinfachtes 4-Status System
 export const FMS_STATUS_TEXTS = {
   1: 'Einsatzbereit über Funk',
   2: 'Einsatzbereit auf Wache',
   3: 'Anfahrt zum Einsatzort',
-  4: 'Ankunft am Einsatzort',
-  5: 'Sprechwunsch',
-  6: 'Nicht einsatzbereit',
-  7: 'Patient aufgenommen',
-  8: 'Am Transportziel',
-  9: 'Notarzt aufgenommen'
+  4: 'Ankunft am Einsatzort'
 } as const
 
 export type FMSStatus = keyof typeof FMS_STATUS_TEXTS
 
 export function getFMSStatusText(status: number): string {
   return FMS_STATUS_TEXTS[status as FMSStatus] || `Unbekannter Status ${status}`
+}
+
+// Neue Funktion für numerische Status-Anzeige
+export function getFMSStatusCode(status: number): string {
+  if (status >= 1 && status <= 4) {
+    return `Status ${status}`
+  }
+  return `Status ${status}`
 }
 
 export function getFMSStatusColor(status: number): {
@@ -33,8 +36,6 @@ export function getFMSStatusColor(status: number): {
         dot: 'bg-green-400'
       }
     case 3: // Anfahrt zum Einsatzort
-    case 7: // Patient aufgenommen
-    case 9: // Notarzt aufgenommen
       return {
         bg: 'bg-orange-600/20',
         text: 'text-orange-400',
@@ -42,26 +43,11 @@ export function getFMSStatusColor(status: number): {
         dot: 'bg-orange-400'
       }
     case 4: // Ankunft am Einsatzort
-    case 8: // Am Transportziel
       return {
         bg: 'bg-blue-600/20',
         text: 'text-blue-400',
         border: 'border-blue-500/30',
         dot: 'bg-blue-400'
-      }
-    case 5: // Sprechwunsch
-      return {
-        bg: 'bg-yellow-600/20',
-        text: 'text-yellow-400',
-        border: 'border-yellow-500/30',
-        dot: 'bg-yellow-400'
-      }
-    case 6: // Nicht einsatzbereit
-      return {
-        bg: 'bg-red-600/20',
-        text: 'text-red-400',
-        border: 'border-red-500/30',
-        dot: 'bg-red-400'
       }
     default:
       return {
@@ -79,43 +65,27 @@ export function canVehicleBeDispatched(fmsStatus: number): boolean {
 }
 
 export function isVehicleOnDuty(fmsStatus: number): boolean {
-  // Status 3-9 bedeuten im Einsatz/unterwegs
-  return fmsStatus >= 3 && fmsStatus <= 9
+  // Status 3 und 4 bedeuten im Einsatz/unterwegs
+  return fmsStatus === 3 || fmsStatus === 4
 }
 
-// Automatische FMS-Status-Berechnung basierend auf Fahrzeugzustand
+// Direkte FMS-Status-Berechnung aus DB-Status
 export function calculateFMSStatus(vehicle: {
   status?: string
   assigned_personnel?: number
   condition_percent?: number
-  movement_state?: string
 }): number {
-  // Kein Personal oder schlechter Zustand -> FMS 6 (nicht einsatzbereit)
+  // Kein Personal -> Fallback auf Status 2 (aber normalerweise sollte dies nicht vorkommen)
   if (!vehicle.assigned_personnel || vehicle.assigned_personnel === 0) {
-    return 6 // Nicht einsatzbereit
+    return 2 // Einsatzbereit auf Wache (Fallback)
   }
   
+  // Fahrzeug beschädigt -> Fallback auf Status 2
   if (vehicle.condition_percent !== undefined && vehicle.condition_percent < 100) {
-    return 6 // Nicht einsatzbereit wegen Schaden
+    return 2 // Einsatzbereit auf Wache (Fallback, könnte später ein eigener "Wartung" Status werden)
   }
 
-  // Zuordnung basierend auf movement_state (falls verfügbar)
-  if (vehicle.movement_state) {
-    switch (vehicle.movement_state) {
-      case 'stationary':
-        return 2 // Einsatzbereit auf Wache
-      case 'responding':
-        return 3 // Anfahrt zum Einsatzort  
-      case 'on_scene':
-        return 4 // Ankunft am Einsatzort
-      case 'returning':
-        return 3 // Rückfahrt (als Anfahrt gewertet)
-      default:
-        return 2
-    }
-  }
-
-  // Zuordnung basierend auf vehicle.status (aktuelle DB-Werte sind status_X)
+  // Direkte Zuordnung basierend auf vehicle.status (DB-Werte sind status_1 bis status_4)
   switch (vehicle.status) {
     case 'status_1':
       return 1 // Einsatzbereit über Funk
@@ -125,29 +95,31 @@ export function calculateFMSStatus(vehicle: {
       return 3 // Anfahrt zum Einsatzort
     case 'status_4':
       return 4 // Ankunft am Einsatzort
-    case 'status_5':
-      return 5 // Sprechwunsch
-    case 'status_6':
-      return 6 // Nicht einsatzbereit
-    case 'status_7':
-      return 7 // Patient aufgenommen
-    case 'status_8':
-      return 8 // Am Transportziel
-    case 'status_9':
-      return 9 // Notarzt aufgenommen
-    // Fallback für neue Enum-Werte (falls später umgestellt)
-    case 'at_station':
-      return 2 // Einsatzbereit auf Wache
-    case 'dispatched':
-      return 3 // Anfahrt zum Einsatzort (alarmiert, aber noch nicht unterwegs)
-    case 'en_route':
-      return 3 // Anfahrt zum Einsatzort
-    case 'on_scene':
-      return 4 // Ankunft am Einsatzort
-    case 'returning':
-      return 3 // Rückfahrt zur Wache (als Anfahrt gewertet)
     default:
       return 2 // Fallback: Einsatzbereit auf Wache
+  }
+}
+
+// Funktion zum Aktualisieren des Vehicle Status in der DB
+export async function updateVehicleStatus(vehicleId: number, newStatus: 1 | 2 | 3 | 4): Promise<boolean> {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const statusString = `status_${newStatus}`
+    
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ status: statusString })
+      .eq('id', vehicleId)
+    
+    if (error) {
+      console.error('Error updating vehicle status:', error)
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Error updating vehicle status:', error)
+    return false
   }
 }
 

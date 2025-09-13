@@ -1,7 +1,7 @@
 'use client'
 
 import type { Station, Vehicle, VehicleType } from '@/types/database'
-import { getFMSStatusText, getFMSStatusColor, calculateFMSStatus } from '@/lib/fms-status'
+import { getFMSStatusCode, getFMSStatusColor, calculateFMSStatus } from '@/lib/fms-status'
 import { RefreshCw } from 'lucide-react'
 
 interface VehiclesTabProps {
@@ -123,7 +123,7 @@ export default function VehiclesTab({
                         }
                         
                         const colors = getFMSStatusColor(fmsStatusNumber)
-                        const statusText = getFMSStatusText(fmsStatusNumber)
+                        const statusText = getFMSStatusCode(fmsStatusNumber)
                         
                         return (
                           <>

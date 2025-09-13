@@ -1,5 +1,5 @@
 import * as L from 'leaflet'
-import { calculateRouteForAnimation } from './routing'
+import { calculateRouteForAnimation } from './routing-v2'
 import type { Vehicle, VehicleType } from '@/types/database'
 
 // Simple vehicle icon creation without React dependencies
@@ -8,7 +8,7 @@ function createSimpleVehicleIcon(vehicleType: VehicleType, status: string, calls
   
   // Color based on vehicle type
   const isFireVehicle = vehicleType.required_station_type === 'fire_station'
-  let backgroundColor = isFireVehicle ? '#ef4444' : '#f97316' // red for fire, orange for EMS
+  const backgroundColor = isFireVehicle ? '#ef4444' : '#f97316' // red for fire, orange for EMS
   
   // Status-based border color
   let borderColor: string

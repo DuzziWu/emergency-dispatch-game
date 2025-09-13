@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { Vehicle, VehicleType } from '@/types/database'
-import { getFMSStatusText, getFMSStatusColor, calculateFMSStatus } from '@/lib/fms-status'
+import { getFMSStatusText, getFMSStatusCode, getFMSStatusColor, calculateFMSStatus } from '@/lib/fms-status'
 
 interface VehicleManagementModalProps {
   isOpen: boolean
@@ -300,7 +300,7 @@ export default function VehicleManagementModal({
                           return (
                             <>
                               <div className={`w-2 h-2 rounded-full ${colors.dot}`}></div>
-                              <span>Status {actualFMSStatus} - {getFMSStatusText(actualFMSStatus)}</span>
+                              <span>{getFMSStatusCode(actualFMSStatus)} - {getFMSStatusText(actualFMSStatus)}</span>
                             </>
                           )
                         })()}
